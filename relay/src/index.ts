@@ -1,30 +1,52 @@
 /**
- * botsync-relay — Cloudflare Worker for ephemeral pairing.
+ * botsync-relay — Cloudflare Worker for ephemeral pairing + network dashboard.
  *
- * Two endpoints:
- *   POST /pair     — store a device ID, get back a 4-word code
- *   GET  /pair/:code — retrieve the device ID, delete it (one-time use)
+ * Pairing endpoints:
+ *   POST /pair          — store a device ID, get back a 4-word code
+ *   GET  /pair/:code    — retrieve the device ID, delete it (one-time use)
  *
- * Device IDs are stored in Cloudflare KV with a 10-minute TTL.
- * After retrieval (or expiry), the data is gone. No persistence,
- * no accounts, no tracking. The relay never sees sync data —
- * only the Syncthing device ID (which is a public key hash).
+ * Network endpoints:
+ *   POST /network/:id/heartbeat — device registers/updates itself
+ *   GET  /network/:id/devices   — returns device list for dashboard
+ *
+ * Device IDs are stored in Cloudflare KV with TTLs.
+ * No persistence, no accounts, no tracking.
  */
 
 export interface Env {
   PAIRS: KVNamespace;
+  NETWORKS: KVNamespace;
   CORS_ORIGIN: string;
 }
 
 import { generateCode, isValidCode } from "./words.js";
 
-/** CORS headers for cross-origin CLI requests. */
+/** Device info stored per heartbeat */
+interface DeviceInfo {
+  deviceId: string;     // short Syncthing ID (7-char)
+  name: string;         // hostname or user-set name
+  os: string;           // darwin, linux, win32
+  lastSeen: string;     // ISO timestamp
+  version: string;      // botsync version
+}
+
+/** CORS headers for cross-origin requests. */
 function corsHeaders(env: Env): Record<string, string> {
   return {
     "Access-Control-Allow-Origin": env.CORS_ORIGIN,
     "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type",
   };
+}
+
+/** KV key for a device in a network */
+function deviceKey(networkId: string, deviceId: string): string {
+  return `net:${networkId}:dev:${deviceId}`;
+}
+
+/** KV key prefix for listing devices in a network */
+function networkPrefix(networkId: string): string {
+  return `net:${networkId}:dev:`;
 }
 
 export default {
@@ -37,6 +59,8 @@ export default {
       return new Response(null, { headers: cors });
     }
 
+    // ── Pairing ──────────────────────────────────────────────
+
     // POST /pair — create a pairing code
     if (request.method === "POST" && url.pathname === "/pair") {
       try {
@@ -48,7 +72,6 @@ export default {
           );
         }
 
-        // Validate device ID format (Syncthing uses 52-char base32 with dashes)
         const cleaned = body.deviceId.replace(/-/g, "");
         if (cleaned.length < 40) {
           return Response.json(
@@ -57,7 +80,6 @@ export default {
           );
         }
 
-        // Generate a unique code — retry on collision (astronomically unlikely)
         let code: string;
         let attempts = 0;
         do {
@@ -74,9 +96,7 @@ export default {
           );
         }
 
-        // Store with 10-minute TTL
         await env.PAIRS.put(code, body.deviceId, { expirationTtl: 600 });
-
         return Response.json({ code }, { status: 201, headers: cors });
       } catch {
         return Response.json(
@@ -105,10 +125,77 @@ export default {
         );
       }
 
-      // One-time use — delete after retrieval
       await env.PAIRS.delete(code);
-
       return Response.json({ deviceId }, { headers: cors });
+    }
+
+    // ── Network / Dashboard ──────────────────────────────────
+
+    // POST /network/:id/heartbeat — device checks in
+    const heartbeatMatch = url.pathname.match(/^\/network\/([a-zA-Z0-9_-]+)\/heartbeat$/);
+    if (request.method === "POST" && heartbeatMatch) {
+      const networkId = heartbeatMatch[1];
+
+      try {
+        const body = (await request.json()) as Partial<DeviceInfo>;
+
+        if (!body.deviceId || typeof body.deviceId !== "string") {
+          return Response.json(
+            { error: "deviceId required" },
+            { status: 400, headers: cors }
+          );
+        }
+
+        const device: DeviceInfo = {
+          deviceId: body.deviceId.slice(0, 7),
+          name: (body.name || "unknown").slice(0, 64),
+          os: (body.os || "unknown").slice(0, 32),
+          lastSeen: new Date().toISOString(),
+          version: (body.version || "0.0.0").slice(0, 16),
+        };
+
+        // Store with 5-minute TTL — stale devices auto-expire
+        const key = deviceKey(networkId, device.deviceId);
+        await env.NETWORKS.put(key, JSON.stringify(device), {
+          expirationTtl: 300,
+        });
+
+        return Response.json({ ok: true }, { headers: cors });
+      } catch {
+        return Response.json(
+          { error: "invalid request body" },
+          { status: 400, headers: cors }
+        );
+      }
+    }
+
+    // GET /network/:id/devices — list devices in a network
+    const devicesMatch = url.pathname.match(/^\/network\/([a-zA-Z0-9_-]+)\/devices$/);
+    if (request.method === "GET" && devicesMatch) {
+      const networkId = devicesMatch[1];
+      const prefix = networkPrefix(networkId);
+
+      const list = await env.NETWORKS.list({ prefix });
+      const devices: DeviceInfo[] = [];
+
+      for (const key of list.keys) {
+        const val = await env.NETWORKS.get(key.name);
+        if (val) {
+          try {
+            devices.push(JSON.parse(val));
+          } catch {
+            // skip corrupt entries
+          }
+        }
+      }
+
+      // Sort by lastSeen descending
+      devices.sort(
+        (a, b) =>
+          new Date(b.lastSeen).getTime() - new Date(a.lastSeen).getTime()
+      );
+
+      return Response.json({ networkId, devices, count: devices.length }, { headers: cors });
     }
 
     // Health check

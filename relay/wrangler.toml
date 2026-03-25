@@ -11,5 +11,9 @@ routes = [
 binding = "PAIRS"
 id = "d0494e1890f6469787d7a1128b2910df"
 
+[[kv_namespaces]]
+binding = "NETWORKS"
+id = "5a702c8d705a402590d3a83c230a798b"
+
 [vars]
 CORS_ORIGIN = "*"
