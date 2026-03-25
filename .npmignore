@@ -1,0 +1,8 @@
+src/
+relay/
+*.ts
+!dist/**/*.js
+!dist/**/*.d.ts
+tsconfig.json
+.gitignore
+*.tgz

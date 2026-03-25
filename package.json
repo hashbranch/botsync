@@ -1,9 +1,9 @@
 {
   "name": "botsync",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "P2P file sync for AI agents. Syncthing under the hood. Two commands.",
   "bin": {
-    "botsync": "./dist/cli.js"
+    "botsync": "dist/cli.js"
   },
   "scripts": {
     "build": "tsc",
@@ -16,7 +16,19 @@
     "agents",
     "syncthing"
   ],
+  "author": "Hashbranch <tom@hashbranch.com> (https://botsync.io)",
+  "homepage": "https://botsync.io",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hashbranch/botsync.git"
+  },
   "license": "MIT",
+  "files": [
+    "dist/**/*.js",
+    "dist/**/*.d.ts",
+    "README.md",
+    "LICENSE"
+  ],
   "type": "commonjs",
   "dependencies": {
     "base-x": "^4.0.1",
