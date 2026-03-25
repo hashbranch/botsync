@@ -30,6 +30,9 @@ import {
   startDaemon,
   waitForStart,
   getDeviceId,
+  apiCall,
+  addDevice,
+  addDeviceToFolder,
 } from "../syncthing.js";
 
 import { encode } from "../passphrase.js";
@@ -92,5 +95,59 @@ export async function init(): Promise<void> {
   console.log(`\nbotsync ready! Share this passphrase to connect:\n`);
   console.log(`  ${passphrase}\n`);
   console.log(`On the other machine, run:`);
-  console.log(`  npx botsync join ${passphrase}`);
+  console.log(`  npx botsync join ${passphrase}\n`);
+
+  // Step 7: Wait for the joining device to connect and auto-accept it.
+  // Syncthing puts unknown devices in a "pending" queue. We poll for it
+  // and approve the first one — this completes the bidirectional pairing
+  // without the joiner needing to manually add our device ID.
+  console.log(`Waiting for peer to connect...`);
+  const accepted = await waitForPeer(apiKey, apiPort);
+  if (accepted) {
+    console.log(`\n✅ Paired with ${accepted.substring(0, 7)}! Sync is active.`);
+  }
+}
+
+/**
+ * Poll for pending device connections and auto-accept the first one.
+ * After accepting the device, share all botsync folders with it.
+ *
+ * Times out after 5 minutes — if nobody joins by then, they can still
+ * join later (they'll just show up as pending until the user restarts
+ * init or manually approves via the API).
+ */
+async function waitForPeer(apiKey: string, apiPort: number, timeoutMs = 300_000): Promise<string | null> {
+  const start = Date.now();
+  const pollInterval = 2000; // Check every 2 seconds
+
+  while (Date.now() - start < timeoutMs) {
+    try {
+      const pending = await apiCall<Record<string, unknown>>("GET", "/rest/cluster/pending/devices");
+      const deviceIds = Object.keys(pending);
+
+      if (deviceIds.length > 0) {
+        const peerId = deviceIds[0];
+        console.log(`\nDevice ${peerId.substring(0, 7)}... wants to connect — accepting...`);
+
+        // Add the device to our config
+        await addDevice(peerId);
+
+        // Share all folders with it
+        for (const folder of FOLDERS) {
+          await addDeviceToFolder(folder.id, peerId);
+        }
+
+        return peerId;
+      }
+    } catch {
+      // API might hiccup during config changes — ignore and retry
+    }
+
+    await new Promise((r) => setTimeout(r, pollInterval));
+  }
+
+  console.log(`\nNo peer connected within ${timeoutMs / 60000} minutes.`);
+  console.log(`The passphrase is still valid — run 'botsync join' on the other machine anytime.`);
+  console.log(`Then restart botsync here to complete pairing.`);
+  return null;
 }
