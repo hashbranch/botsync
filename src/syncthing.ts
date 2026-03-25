@@ -179,6 +179,12 @@ ${folderXml}
         <urAccepted>-1</urAccepted>
         <autoUpgradeIntervalH>0</autoUpgradeIntervalH>
     </options>
+
+    <defaults>
+        <device>
+            <autoAcceptFolders>true</autoAcceptFolders>
+        </device>
+    </defaults>
 </configuration>
 `;
 }
