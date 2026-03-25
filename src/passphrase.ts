@@ -1,19 +1,20 @@
 /**
- * passphrase.ts — Encode/decode connection info as a base58 passphrase.
+ * passphrase.ts — Human-readable pairing codes via relay.
  *
- * The passphrase is the entire UX of botsync's pairing flow. It encodes
- * the remote device ID and folder list into a single copy-pasteable string.
- * We use base58 (Bitcoin alphabet) because it's URL-safe, no ambiguous chars
- * (no 0/O/I/l), and looks like "a thing" rather than random garbage.
+ * Instead of encoding the full device ID into a massive base58 string,
+ * we now use a 4-word code like "castle-river-falcon-dawn". The device
+ * ID is stored temporarily on a Cloudflare Worker relay, and the code
+ * is the lookup key.
  *
- * Format: JSON.stringify({deviceId, folders}) → Buffer → base58 encode.
- * Dead simple. No encryption needed — device IDs aren't secret in Syncthing's
- * threat model (they're essentially public keys).
+ * Falls back to the old base58 encoding if the relay is unreachable
+ * (offline/airgap mode).
  */
 
 import baseX from "base-x";
 
-// Bitcoin's base58 alphabet — no 0, O, I, l to avoid visual ambiguity
+const RELAY_URL = "https://relay.botsync.io";
+
+// Keep base58 as fallback for offline use
 const BASE58 = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
 const bs58 = baseX(BASE58);
 
@@ -22,14 +23,73 @@ export interface PassphraseData {
   folders: string[];
 }
 
-/** Encode connection data into a base58 passphrase string */
+/**
+ * Register a device ID with the relay and get a short code.
+ * Falls back to base58 encoding if the relay is unreachable.
+ */
+export async function createCode(data: PassphraseData): Promise<{ code: string; isRelay: boolean }> {
+  try {
+    const res = await fetch(`${RELAY_URL}/pair`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ deviceId: data.deviceId }),
+      signal: AbortSignal.timeout(5000),
+    });
+
+    if (res.ok) {
+      const { code } = (await res.json()) as { code: string };
+      return { code, isRelay: true };
+    }
+  } catch {
+    // Relay unreachable — fall back to offline mode
+  }
+
+  // Offline fallback: base58 encode everything
+  const json = JSON.stringify(data);
+  const buf = Buffer.from(json, "utf-8");
+  return { code: bs58.encode(buf), isRelay: false };
+}
+
+/**
+ * Resolve a pairing code to connection data.
+ * If it looks like a word code (contains dashes, all alpha), try the relay.
+ * Otherwise treat it as a base58 offline passphrase.
+ */
+export async function resolveCode(code: string): Promise<PassphraseData> {
+  // Word codes contain dashes and only letters
+  const isWordCode = code.includes("-") && /^[a-z-]+$/.test(code);
+
+  if (isWordCode) {
+    const res = await fetch(`${RELAY_URL}/pair/${code}`, {
+      signal: AbortSignal.timeout(5000),
+    });
+
+    if (!res.ok) {
+      const body = (await res.json()) as { error?: string };
+      throw new Error(body.error || `Relay returned ${res.status}`);
+    }
+
+    const { deviceId } = (await res.json()) as { deviceId: string };
+    // Folders are always the standard set — no need to encode them
+    return {
+      deviceId,
+      folders: ["botsync-shared", "botsync-deliverables", "botsync-inbox"],
+    };
+  }
+
+  // Legacy base58 fallback
+  const buf = Buffer.from(bs58.decode(code));
+  const json = buf.toString("utf-8");
+  return JSON.parse(json) as PassphraseData;
+}
+
+// Keep old exports for backward compat during transition
 export function encode(data: PassphraseData): string {
   const json = JSON.stringify(data);
   const buf = Buffer.from(json, "utf-8");
   return bs58.encode(buf);
 }
 
-/** Decode a base58 passphrase back into connection data */
 export function decode(passphrase: string): PassphraseData {
   const buf = Buffer.from(bs58.decode(passphrase));
   const json = buf.toString("utf-8");

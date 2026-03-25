@@ -33,14 +33,26 @@ import {
   addDeviceToFolder,
 } from "../syncthing.js";
 
-import { decode } from "../passphrase.js";
+import { resolveCode } from "../passphrase.js";
 import * as ui from "../ui.js";
 
 export async function join(passphrase: string): Promise<void> {
   ui.header();
 
-  // Decode the passphrase to get the init side's info
-  const { deviceId: remoteId, folders } = decode(passphrase);
+  // Resolve the code — tries relay first, falls back to base58
+  const spin0 = ui.spinner("Resolving pairing code...");
+  let remoteId: string;
+  let folders: string[];
+  try {
+    const data = await resolveCode(passphrase);
+    remoteId = data.deviceId;
+    folders = data.folders;
+    spin0.succeed();
+  } catch (err) {
+    spin0.fail();
+    ui.error(err instanceof Error ? err.message : "Failed to resolve code");
+    process.exit(1);
+  }
   const short = remoteId.substring(0, 7);
   ui.info(`Connecting to ${short}...`);
   ui.gap();

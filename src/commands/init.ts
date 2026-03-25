@@ -33,7 +33,8 @@ import {
   addDeviceToFolder,
 } from "../syncthing.js";
 
-import { encode } from "../passphrase.js";
+import { createCode } from "../passphrase.js";
+import { FOLDERS as FOLDER_IDS } from "../config.js";
 import * as ui from "../ui.js";
 
 /**
@@ -80,13 +81,21 @@ export async function init(): Promise<void> {
   const deviceId = await getDeviceId();
   writeConfig({ apiKey, apiPort, deviceId });
 
-  // Step 6: Display the passphrase
+  // Step 6: Register with relay and display the code
   ui.gap();
-  const passphrase = encode({
+  const { code, isRelay } = await createCode({
     deviceId,
     folders: FOLDERS.map((f) => f.id),
   });
-  ui.passphraseBox(passphrase, `npx botsync join ${passphrase.substring(0, 20)}...`);
+
+  if (isRelay) {
+    ui.passphraseBox(code, `npx botsync join ${code}`);
+    ui.info("Code expires in 10 minutes.");
+  } else {
+    ui.info("Relay unavailable — using offline passphrase:");
+    ui.gap();
+    ui.passphraseBox(code, `npx botsync join ${code.substring(0, 20)}...`);
+  }
   ui.gap();
 
   // Step 7: Wait for the joining device to connect and auto-accept it
