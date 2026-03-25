@@ -171,9 +171,9 @@ ${folderXml}
 
     <options>
         <listenAddress>default</listenAddress>
-        <globalAnnounceEnabled>false</globalAnnounceEnabled>
+        <globalAnnounceEnabled>true</globalAnnounceEnabled>
         <localAnnounceEnabled>true</localAnnounceEnabled>
-        <relaysEnabled>false</relaysEnabled>
+        <relaysEnabled>true</relaysEnabled>
         <startBrowser>false</startBrowser>
         <natEnabled>true</natEnabled>
         <urAccepted>-1</urAccepted>
