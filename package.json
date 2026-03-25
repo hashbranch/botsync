@@ -1,0 +1,30 @@
+{
+  "name": "botsync",
+  "version": "0.1.0",
+  "description": "P2P file sync for AI agents. Syncthing under the hood. Two commands.",
+  "bin": {
+    "botsync": "./dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "sync",
+    "p2p",
+    "ai",
+    "agents",
+    "syncthing"
+  ],
+  "license": "MIT",
+  "type": "commonjs",
+  "dependencies": {
+    "base-x": "^4.0.1",
+    "commander": "^13.1.0",
+    "tar": "^7.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.0",
+    "typescript": "^5.7.0"
+  }
+}
