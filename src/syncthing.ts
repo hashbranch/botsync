@@ -88,8 +88,7 @@ export async function downloadSyncthing(): Promise<void> {
   // Check if we already have a usable binary (cached or system)
   if (existsSync(SYNCTHING_BIN)) return;
   if (findSystemSyncthing()) {
-    console.log(`Using system Syncthing at ${findSystemSyncthing()}`);
-    return;
+    return; // Using system Syncthing
   }
 
   // Map Node's platform/arch to Syncthing's naming convention
@@ -100,7 +99,7 @@ export async function downloadSyncthing(): Promise<void> {
   const ext = process.platform === "darwin" ? "zip" : "tar.gz";
   const url = `https://github.com/syncthing/syncthing/releases/download/v${SYNCTHING_VERSION}/${slug}.${ext}`;
 
-  console.log(`Downloading Syncthing v${SYNCTHING_VERSION} for ${platform}/${arch}...`);
+  // Download message handled by caller's UI
 
   mkdirSync(SYNCTHING_BIN_DIR, { recursive: true });
 
@@ -136,7 +135,7 @@ export async function downloadSyncthing(): Promise<void> {
   const { unlinkSync } = await import("fs");
   unlinkSync(archivePath);
 
-  console.log("Syncthing downloaded.");
+  // Download complete — caller handles messaging
 }
 
 /**

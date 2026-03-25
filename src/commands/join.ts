@@ -2,19 +2,27 @@
  * join.ts — The `botsync join <passphrase>` command.
  *
  * This is the "machine B" side of the pairing flow. It:
- * 1. Decodes the passphrase to get the remote device ID and folder list
- * 2. Initializes locally if not already done (same as init, minus passphrase output)
- * 3. Adds the remote device to our Syncthing config
- * 4. Shares all folders with the remote device
- *
- * After this, Syncthing handles everything — discovery, NAT traversal,
- * conflict resolution, etc. We just connected two nodes.
+ * 1. Decodes the passphrase to get the init side's device ID + folder list
+ * 2. Creates the local directory structure
+ * 3. Downloads Syncthing if needed
+ * 4. Generates config
+ * 5. Starts the daemon
+ * 6. Adds the init side as a known device
+ * 7. Shares all folders with the init side
  */
 
-import { existsSync } from "fs";
+import { mkdirSync, writeFileSync, existsSync } from "fs";
+import { randomUUID } from "crypto";
 
-import { BOTSYNC_DIR, CONFIG_FILE, FOLDERS, readConfig, writeConfig, SYNCTHING_CONFIG_DIR } from "../config.js";
-import { decode } from "../passphrase.js";
+import {
+  SYNC_DIR,
+  BOTSYNC_DIR,
+  SYNCTHING_CONFIG_DIR,
+  FOLDERS,
+  writeConfig,
+  readConfig,
+} from "../config.js";
+
 import {
   downloadSyncthing,
   generateConfig,
@@ -24,21 +32,22 @@ import {
   addDevice,
   addDeviceToFolder,
 } from "../syncthing.js";
-import { mkdirSync, writeFileSync } from "fs";
-import { randomUUID } from "crypto";
+
+import { decode } from "../passphrase.js";
+import * as ui from "../ui.js";
 
 export async function join(passphrase: string): Promise<void> {
-  // Step 1: Decode the passphrase
-  const remote = decode(passphrase);
-  console.log(`Connecting to device ${remote.deviceId.substring(0, 7)}...`);
+  ui.header();
 
-  // Step 2: Initialize if not already done
-  // We check for the config file as a proxy for "has init been run"
-  let config = readConfig();
-  if (!config) {
-    console.log("First time setup — initializing botsync...");
+  // Decode the passphrase to get the init side's info
+  const { deviceId: remoteId, folders } = decode(passphrase);
+  const short = remoteId.substring(0, 7);
+  ui.info(`Connecting to ${short}...`);
+  ui.gap();
 
-    // Create directories
+  // First time? Set up everything
+  const existing = readConfig();
+  if (!existing) {
     for (const folder of FOLDERS) {
       mkdirSync(folder.path, { recursive: true });
     }
@@ -46,6 +55,7 @@ export async function join(passphrase: string): Promise<void> {
     mkdirSync(SYNCTHING_CONFIG_DIR, { recursive: true });
 
     await downloadSyncthing();
+    ui.stepDone("Syncthing ready");
 
     const apiKey = randomUUID();
     const apiPort = 27000 + Math.floor(Math.random() * 10000);
@@ -54,22 +64,24 @@ export async function join(passphrase: string): Promise<void> {
     writeFileSync(`${SYNCTHING_CONFIG_DIR}/config.xml`, configXml);
     writeConfig({ apiKey, apiPort });
 
-    console.log("Starting Syncthing daemon...");
-    startDaemon();
+    const pid = startDaemon();
+    ui.stepDone(`Daemon started (PID ${pid})`);
+
+    const spin = ui.spinner("Starting Syncthing...");
     await waitForStart();
+    spin.succeed();
 
-    const deviceId = await getDeviceId();
-    writeConfig({ apiKey, apiPort, deviceId });
-    config = readConfig()!;
+    const myId = await getDeviceId();
+    writeConfig({ apiKey, apiPort, deviceId: myId });
   }
 
-  // Step 3: Add the remote device
-  await addDevice(remote.deviceId);
-
-  // Step 4: Share all folders with the remote device
-  for (const folderId of remote.folders) {
-    await addDeviceToFolder(folderId, remote.deviceId);
+  // Add the remote device and share folders
+  const spin2 = ui.spinner("Pairing...");
+  await addDevice(remoteId);
+  for (const folderId of folders) {
+    await addDeviceToFolder(folderId, remoteId);
   }
+  spin2.stop();
 
-  console.log(`\nConnected! Syncing with ${remote.deviceId.substring(0, 7)}...`);
+  ui.connected(remoteId);
 }

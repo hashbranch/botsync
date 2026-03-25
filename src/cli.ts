@@ -2,12 +2,8 @@
 /**
  * cli.ts — Entry point for the botsync CLI.
  *
- * This is the file that runs when you type `botsync` or `npx botsync`.
- * It sets up the four commands (init, join, status, stop) using Commander
- * and dispatches to the appropriate handler.
- *
- * The shebang line (#!/usr/bin/env node) makes it executable as a CLI tool
- * when installed globally or via npx.
+ * Routes commands to their handlers. The shebang line makes it
+ * executable as `npx botsync` or a globally installed CLI.
  */
 
 import { Command } from "commander";
@@ -15,12 +11,13 @@ import { init } from "./commands/init.js";
 import { join } from "./commands/join.js";
 import { status } from "./commands/status.js";
 import { stop } from "./commands/stop.js";
+import * as ui from "./ui.js";
 
 const program = new Command();
 
 program
   .name("botsync")
-  .description("P2P file sync for AI agents. Syncthing under the hood.")
+  .description("P2P file sync for AI agents.")
   .version("0.1.0");
 
 program
@@ -30,7 +27,7 @@ program
     try {
       await init();
     } catch (err) {
-      console.error("Error:", err instanceof Error ? err.message : err);
+      ui.error(err instanceof Error ? err.message : String(err));
       process.exit(1);
     }
   });
@@ -42,7 +39,7 @@ program
     try {
       await join(passphrase);
     } catch (err) {
-      console.error("Error:", err instanceof Error ? err.message : err);
+      ui.error(err instanceof Error ? err.message : String(err));
       process.exit(1);
     }
   });
@@ -54,7 +51,7 @@ program
     try {
       await status();
     } catch (err) {
-      console.error("Error:", err instanceof Error ? err.message : err);
+      ui.error(err instanceof Error ? err.message : String(err));
       process.exit(1);
     }
   });
@@ -66,7 +63,7 @@ program
     try {
       await stop();
     } catch (err) {
-      console.error("Error:", err instanceof Error ? err.message : err);
+      ui.error(err instanceof Error ? err.message : String(err));
       process.exit(1);
     }
   });
