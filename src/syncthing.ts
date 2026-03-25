@@ -31,7 +31,7 @@ import {
   readConfig,
 } from "./config.js";
 
-const SYNCTHING_VERSION = "1.29.2";
+const SYNCTHING_VERSION = "2.0.15";
 
 /**
  * Follow redirects for HTTPS GET — needed because GitHub releases
