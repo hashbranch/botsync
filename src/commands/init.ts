@@ -20,6 +20,7 @@ import {
   SYNCTHING_CONFIG_DIR,
   FOLDERS,
   writeConfig,
+  writeNetworkId,
 } from "../config.js";
 
 import {
@@ -34,7 +35,7 @@ import {
 } from "../syncthing.js";
 
 import { createCode } from "../passphrase.js";
-import { FOLDERS as FOLDER_IDS } from "../config.js";
+import { startHeartbeat } from "../heartbeat.js";
 import * as ui from "../ui.js";
 
 /**
@@ -81,11 +82,18 @@ export async function init(): Promise<void> {
   const deviceId = await getDeviceId();
   writeConfig({ apiKey, apiPort, deviceId });
 
+  // Step 5b: Generate network ID and start heartbeat
+  const networkId = randomUUID();
+  writeNetworkId(networkId);
+  startHeartbeat();
+  ui.stepDone("Network registered");
+
   // Step 6: Register with relay and display the code
   ui.gap();
   const { code, isRelay } = await createCode({
     deviceId,
     folders: FOLDERS.map((f) => f.id),
+    networkId,
   });
 
   if (isRelay) {
@@ -96,6 +104,8 @@ export async function init(): Promise<void> {
     ui.gap();
     ui.passphraseBox(code, `npx botsync join ${code.substring(0, 20)}...`);
   }
+  ui.gap();
+  ui.info(`Dashboard: https://botsync.io/dashboard#${networkId}`);
   ui.gap();
 
   // Step 7: Wait for the joining device to connect and auto-accept it

@@ -21,6 +21,7 @@ const bs58 = baseX(BASE58);
 export interface PassphraseData {
   deviceId: string;
   folders: string[];
+  networkId?: string;
 }
 
 /**
@@ -32,7 +33,7 @@ export async function createCode(data: PassphraseData): Promise<{ code: string; 
     const res = await fetch(`${RELAY_URL}/pair`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ deviceId: data.deviceId }),
+      body: JSON.stringify({ deviceId: data.deviceId, networkId: data.networkId }),
       signal: AbortSignal.timeout(5000),
     });
 
@@ -69,11 +70,12 @@ export async function resolveCode(code: string): Promise<PassphraseData> {
       throw new Error(body.error || `Relay returned ${res.status}`);
     }
 
-    const { deviceId } = (await res.json()) as { deviceId: string };
+    const { deviceId, networkId } = (await res.json()) as { deviceId: string; networkId?: string };
     // Folders are always the standard set — no need to encode them
     return {
       deviceId,
       folders: ["botsync-shared", "botsync-deliverables", "botsync-inbox"],
+      networkId: networkId || undefined,
     };
   }
 

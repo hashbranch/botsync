@@ -43,6 +43,9 @@ export const FOLDERS = [
   { id: "botsync-inbox", path: join(SYNC_DIR, "inbox") },
 ];
 
+// Network identity file — stores the network ID for dashboard visibility
+export const NETWORK_FILE = join(BOTSYNC_DIR, "network.json");
+
 /** Runtime config shape — everything we need to talk to Syncthing */
 export interface BotsyncConfig {
   apiKey: string;
@@ -64,4 +67,21 @@ export function readConfig(): BotsyncConfig | null {
 export function writeConfig(config: BotsyncConfig): void {
   mkdirSync(BOTSYNC_DIR, { recursive: true });
   writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2));
+}
+
+/** Read the network ID, or return null if not yet assigned */
+export function readNetworkId(): string | null {
+  try {
+    const raw = readFileSync(NETWORK_FILE, "utf-8");
+    const data = JSON.parse(raw) as { networkId: string };
+    return data.networkId || null;
+  } catch {
+    return null;
+  }
+}
+
+/** Write the network ID to disk. */
+export function writeNetworkId(networkId: string): void {
+  mkdirSync(BOTSYNC_DIR, { recursive: true });
+  writeFileSync(NETWORK_FILE, JSON.stringify({ networkId }, null, 2));
 }

@@ -62,9 +62,10 @@ export default {
     // ── Pairing ──────────────────────────────────────────────
 
     // POST /pair — create a pairing code
+    // Accepts { deviceId, networkId? } — networkId is passed through to the joiner
     if (request.method === "POST" && url.pathname === "/pair") {
       try {
-        const body = (await request.json()) as { deviceId?: string };
+        const body = (await request.json()) as { deviceId?: string; networkId?: string };
         if (!body.deviceId || typeof body.deviceId !== "string") {
           return Response.json(
             { error: "deviceId required" },
@@ -96,7 +97,12 @@ export default {
           );
         }
 
-        await env.PAIRS.put(code, body.deviceId, { expirationTtl: 600 });
+        // Store device ID + optional network ID as JSON
+        const payload = JSON.stringify({
+          deviceId: body.deviceId,
+          networkId: body.networkId || null,
+        });
+        await env.PAIRS.put(code, payload, { expirationTtl: 600 });
         return Response.json({ code }, { status: 201, headers: cors });
       } catch {
         return Response.json(
@@ -117,8 +123,8 @@ export default {
         );
       }
 
-      const deviceId = await env.PAIRS.get(code);
-      if (!deviceId) {
+      const raw = await env.PAIRS.get(code);
+      if (!raw) {
         return Response.json(
           { error: "code not found or expired" },
           { status: 404, headers: cors }
@@ -126,7 +132,20 @@ export default {
       }
 
       await env.PAIRS.delete(code);
-      return Response.json({ deviceId }, { headers: cors });
+
+      // Handle both old format (plain deviceId string) and new format (JSON)
+      let deviceId: string;
+      let networkId: string | null = null;
+      try {
+        const parsed = JSON.parse(raw);
+        deviceId = parsed.deviceId;
+        networkId = parsed.networkId || null;
+      } catch {
+        // Old format — raw string is the deviceId
+        deviceId = raw;
+      }
+
+      return Response.json({ deviceId, networkId }, { headers: cors });
     }
 
     // ── Network / Dashboard ──────────────────────────────────

@@ -1,6 +1,6 @@
 {
   "name": "botsync",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "P2P file sync for AI agents. Syncthing under the hood. Two commands.",
   "bin": {
     "botsync": "dist/cli.js"

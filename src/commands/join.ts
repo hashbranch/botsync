@@ -21,6 +21,7 @@ import {
   FOLDERS,
   writeConfig,
   readConfig,
+  writeNetworkId,
 } from "../config.js";
 
 import {
@@ -34,6 +35,7 @@ import {
 } from "../syncthing.js";
 
 import { resolveCode } from "../passphrase.js";
+import { startHeartbeat } from "../heartbeat.js";
 import * as ui from "../ui.js";
 
 export async function join(passphrase: string): Promise<void> {
@@ -43,10 +45,12 @@ export async function join(passphrase: string): Promise<void> {
   const spin0 = ui.spinner("Resolving pairing code...");
   let remoteId: string;
   let folders: string[];
+  let networkId: string | undefined;
   try {
     const data = await resolveCode(passphrase);
     remoteId = data.deviceId;
     folders = data.folders;
+    networkId = data.networkId;
     spin0.succeed();
   } catch (err) {
     spin0.fail();
@@ -95,5 +99,13 @@ export async function join(passphrase: string): Promise<void> {
   }
   spin2.stop();
 
-  ui.connected(remoteId);
+  // Save network ID (inherited from init side) and start heartbeat
+  if (networkId) {
+    writeNetworkId(networkId);
+    startHeartbeat();
+    ui.connected(remoteId);
+    ui.info(`Dashboard: https://botsync.io/dashboard#${networkId}`);
+  } else {
+    ui.connected(remoteId);
+  }
 }
