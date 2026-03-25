@@ -13,8 +13,12 @@ import { readFileSync, writeFileSync, mkdirSync } from "fs";
 import { join } from "path";
 import { homedir } from "os";
 
+// BOTSYNC_ROOT env var overrides the default ~/sync/ location.
+// Useful for testing without touching a production sync folder.
+const root = process.env.BOTSYNC_ROOT || join(homedir(), "sync");
+
 // Where synced files live — the user-facing directory
-export const SYNC_DIR = join(homedir(), "sync");
+export const SYNC_DIR = root;
 
 // Internal botsync state — inside sync dir but gitignored by Syncthing
 export const BOTSYNC_DIR = join(SYNC_DIR, ".botsync");

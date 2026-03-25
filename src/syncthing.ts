@@ -52,13 +52,43 @@ function httpsGetFollowRedirects(url: string): Promise<IncomingMessage> {
 }
 
 /**
+ * Find an existing syncthing binary on the system PATH, or return null.
+ * Prefer system-installed syncthing over downloading — avoids duplication
+ * and works better when the user already has it (e.g., via Homebrew).
+ */
+function findSystemSyncthing(): string | null {
+  try {
+    const result = execSync("which syncthing", { encoding: "utf-8" }).trim();
+    if (result && existsSync(result)) return result;
+  } catch {
+    // Not found on PATH
+  }
+  return null;
+}
+
+/**
+ * Get the path to the Syncthing binary.
+ * Checks: 1) our cached binary, 2) system PATH, 3) needs download.
+ */
+export function getSyncthingBin(): string {
+  if (existsSync(SYNCTHING_BIN)) return SYNCTHING_BIN;
+  const system = findSystemSyncthing();
+  if (system) return system;
+  return SYNCTHING_BIN; // Will need download
+}
+
+/**
  * Download the Syncthing binary for the current platform.
- * Extracts from the GitHub release tarball and stores in ~/.botsync/bin/.
+ * Extracts from the GitHub release and stores in ~/.botsync/bin/.
+ *
+ * Skips download if we already have a binary OR one exists on the system PATH.
+ * macOS releases are .zip, Linux releases are .tar.gz.
  */
 export async function downloadSyncthing(): Promise<void> {
-  if (existsSync(SYNCTHING_BIN)) {
-    // Already downloaded — skip. For an MVP this is fine;
-    // a real version would check the binary version.
+  // Check if we already have a usable binary (cached or system)
+  if (existsSync(SYNCTHING_BIN)) return;
+  if (findSystemSyncthing()) {
+    console.log(`Using system Syncthing at ${findSystemSyncthing()}`);
     return;
   }
 
@@ -66,38 +96,45 @@ export async function downloadSyncthing(): Promise<void> {
   const platform = process.platform === "darwin" ? "macos" : "linux";
   const arch = process.arch === "arm64" ? "arm64" : "amd64";
   const slug = `syncthing-${platform}-${arch}-v${SYNCTHING_VERSION}`;
-  const url = `https://github.com/syncthing/syncthing/releases/download/v${SYNCTHING_VERSION}/${slug}.tar.gz`;
+  // macOS uses .zip, Linux uses .tar.gz
+  const ext = process.platform === "darwin" ? "zip" : "tar.gz";
+  const url = `https://github.com/syncthing/syncthing/releases/download/v${SYNCTHING_VERSION}/${slug}.${ext}`;
 
   console.log(`Downloading Syncthing v${SYNCTHING_VERSION} for ${platform}/${arch}...`);
 
   mkdirSync(SYNCTHING_BIN_DIR, { recursive: true });
 
-  // Download the tarball to a temp file
-  const tarPath = join(SYNCTHING_BIN_DIR, "syncthing.tar.gz");
-  const res = await httpsGetFollowRedirects(url);
+  const archivePath = join(SYNCTHING_BIN_DIR, `syncthing.${ext}`);
 
-  if (res.statusCode !== 200) {
-    throw new Error(`Failed to download Syncthing: HTTP ${res.statusCode}`);
+  // Use curl for downloads — it handles redirects, TLS, and retries
+  // better than Node's https.get, and every Mac/Linux has it.
+  execSync(`curl -fsSL -o "${archivePath}" "${url}"`, { stdio: "inherit" });
+
+  if (ext === "zip") {
+    // macOS: unzip, then move binary out
+    execSync(`unzip -o "${archivePath}" -d "${SYNCTHING_BIN_DIR}"`, { stdio: "ignore" });
+    const extracted = join(SYNCTHING_BIN_DIR, slug, "syncthing");
+    if (existsSync(extracted)) {
+      execSync(`mv "${extracted}" "${SYNCTHING_BIN}"`);
+      // Clean up extracted directory
+      execSync(`rm -rf "${join(SYNCTHING_BIN_DIR, slug)}"`);
+    }
+  } else {
+    // Linux: tar extract
+    const tar = await import("tar");
+    await tar.extract({
+      file: archivePath,
+      cwd: SYNCTHING_BIN_DIR,
+      strip: 1,
+      filter: (path: string) => path.endsWith("/syncthing"),
+    });
   }
-
-  await pipeline(res, createWriteStream(tarPath));
-
-  // Extract just the syncthing binary from the tarball.
-  // The tarball structure is: syncthing-{os}-{arch}-v{version}/syncthing
-  // We use tar CLI because the 'tar' npm package API is simpler this way.
-  const tar = await import("tar");
-  await tar.extract({
-    file: tarPath,
-    cwd: SYNCTHING_BIN_DIR,
-    strip: 1, // Strip the top-level directory
-    filter: (path: string) => path.endsWith("/syncthing"), // Only extract the binary
-  });
 
   chmodSync(SYNCTHING_BIN, 0o755);
 
-  // Clean up the tarball — we don't need it anymore
+  // Clean up the archive
   const { unlinkSync } = await import("fs");
-  unlinkSync(tarPath);
+  unlinkSync(archivePath);
 
   console.log("Syncthing downloaded.");
 }
@@ -157,7 +194,8 @@ ${folderXml}
 export function startDaemon(): number {
   mkdirSync(SYNCTHING_CONFIG_DIR, { recursive: true });
 
-  const child = spawn(SYNCTHING_BIN, [
+  const bin = getSyncthingBin();
+  const child = spawn(bin, [
     "--no-browser",
     "--no-upgrade",
     `--home=${SYNCTHING_CONFIG_DIR}`,
