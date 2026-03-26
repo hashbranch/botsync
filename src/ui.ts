@@ -52,45 +52,67 @@ export function gap(): void {
 
 /**
  * Display the passphrase in a box so it visually pops.
- * The box auto-sizes to the passphrase length (with wrapping for long ones).
+ * The box auto-sizes to content width.
  */
 export function passphraseBox(passphrase: string, command: string): void {
-  // Wrap passphrase at ~50 chars for readability
-  const maxWidth = 52;
-  const lines: string[] = [];
-  for (let i = 0; i < passphrase.length; i += maxWidth) {
-    lines.push(passphrase.substring(i, i + maxWidth));
-  }
+  // Calculate box width based on longest content line
+  const labelLine = "Your passphrase:";
+  const instructionLine = "On the other machine:";
+  const innerWidth = Math.max(
+    labelLine.length,
+    passphrase.length,
+    command.length,
+    instructionLine.length,
+  ) + 2; // 1 char padding each side
 
-  const contentWidth = Math.max(maxWidth, command.length + 2);
-  const top = `┌${"─".repeat(contentWidth + 2)}┐`;
-  const bot = `└${"─".repeat(contentWidth + 2)}┘`;
-  const empty = `│${" ".repeat(contentWidth + 2)}│`;
-  const pad = (s: string) => {
-    const visible = s.length;
-    return `│ ${s}${" ".repeat(Math.max(0, contentWidth - visible))} │`;
-  };
+  const hr  = "─".repeat(innerWidth);
+  const pad = (text: string) => text + " ".repeat(Math.max(0, innerWidth - text.length - 1));
+  const row = (text: string) => `${INDENT}${dim("│")} ${pad(text)}${dim("│")}`;
+  const blank = `${INDENT}${dim("│")}${" ".repeat(innerWidth)}${dim("│")}`;
 
-  console.log(`${INDENT}${dim(top)}`);
-  console.log(`${INDENT}${dim("│")} ${bold("Your passphrase:")}${" ".repeat(Math.max(0, contentWidth - 17))}${dim("│")}`);
-  console.log(`${INDENT}${dim(empty)}`);
-  for (const line of lines) {
-    console.log(`${INDENT}${dim("│")} ${brand(line)}${" ".repeat(Math.max(0, contentWidth - line.length))} ${dim("│")}`);
-  }
-  console.log(`${INDENT}${dim(empty)}`);
-  console.log(`${INDENT}${dim("│")} ${dim("On the other machine:")}${" ".repeat(Math.max(0, contentWidth - 21))}${dim("│")}`);
-  console.log(`${INDENT}${dim("│")} ${chalk.white(command)}${" ".repeat(Math.max(0, contentWidth - command.length))} ${dim("│")}`);
-  console.log(`${INDENT}${dim(bot)}`);
+  console.log(`${INDENT}${dim(`┌${hr}┐`)}`);
+  console.log(row(bold("Your passphrase:")));
+  console.log(blank);
+  console.log(row(brand(passphrase)));
+  console.log(blank);
+  console.log(row(dim("On the other machine:")));
+  console.log(row(chalk.white(command)));
+  console.log(`${INDENT}${dim(`└${hr}┘`)}`);
 }
 
-/** Start a spinner. Returns the ora instance so the caller can stop it. */
+/**
+ * Start a spinner. Returns the ora instance so the caller can stop it.
+ * Symbols overridden to match our ✓/✗ for visual consistency.
+ */
 export function spinner(text: string): Ora {
-  return ora({
+  const s = ora({
     text: dim(text),
     prefixText: INDENT,
     spinner: "dots",
     color: "cyan",
   }).start();
+
+  // Override succeed to use our ✓ (ora default is ✔ which looks different)
+  s.succeed = (t?: string) => {
+    s.stopAndPersist({
+      symbol: success("✓"),
+      text: dim(t || text),
+      prefixText: INDENT,
+    });
+    return s;
+  };
+
+  // Override fail to use our ✗
+  s.fail = (t?: string) => {
+    s.stopAndPersist({
+      symbol: chalk.red("✗"),
+      text: t || text,
+      prefixText: INDENT,
+    });
+    return s;
+  };
+
+  return s;
 }
 
 /** Print the "paired" success message. */

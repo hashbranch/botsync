@@ -61,7 +61,7 @@ export async function join(passphrase: string): Promise<void> {
   ui.info(`Connecting to ${short}...`);
   ui.gap();
 
-  // First time? Set up everything
+  // First time? Set up everything. Existing config? Just ensure daemon is running.
   const existing = readConfig();
   if (!existing) {
     for (const folder of FOLDERS) {
@@ -89,6 +89,19 @@ export async function join(passphrase: string): Promise<void> {
 
     const myId = await getDeviceId();
     writeConfig({ apiKey, apiPort, deviceId: myId });
+  } else {
+    // Config exists — make sure daemon is actually running
+    const spin = ui.spinner("Starting Syncthing...");
+    try {
+      await waitForStart();
+      spin.succeed();
+    } catch {
+      // Daemon not running, restart it
+      const pid = startDaemon();
+      ui.stepDone(`Daemon restarted (PID ${pid})`);
+      await waitForStart();
+      spin.succeed();
+    }
   }
 
   // Add the remote device and share folders
