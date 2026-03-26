@@ -1,77 +1,65 @@
 /**
- * heartbeat.ts — Periodic heartbeat to the botsync relay.
+ * heartbeat.ts — Spawn/stop the background heartbeat daemon.
  *
- * Sends device info every 60s so the dashboard at botsync.io/dashboard
- * can show connected devices. The relay stores each heartbeat in KV
- * with a 5-minute TTL — if we stop heartbeating, we disappear.
- *
- * The heartbeat runs in the background and never throws — a failed
- * heartbeat just means we're invisible on the dashboard for a cycle.
+ * Instead of running in-process (which dies when init/join exits),
+ * we spawn heartbeat-daemon.js as a detached child process that
+ * outlives the parent CLI command.
  */
 
-import { hostname } from "os";
-import { readConfig, readNetworkId } from "./config.js";
+import { spawn } from "child_process";
+import { readFileSync, existsSync } from "fs";
+import { join, dirname } from "path";
+import { BOTSYNC_DIR } from "./config.js";
 
-const RELAY_URL = "https://relay.botsync.io";
-const HEARTBEAT_INTERVAL_MS = 60_000;
+const HEARTBEAT_PID_FILE = join(BOTSYNC_DIR, "heartbeat.pid");
 
-let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
-
-/** Send a single heartbeat to the relay. */
-async function sendHeartbeat(): Promise<void> {
-  const config = readConfig();
-  const networkId = readNetworkId();
-
-  if (!config?.deviceId || !networkId) return;
-
-  try {
-    await fetch(`${RELAY_URL}/network/${encodeURIComponent(networkId)}/heartbeat`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        deviceId: config.deviceId,
-        name: hostname(),
-        os: process.platform,
-        version: getVersion(),
-      }),
-      signal: AbortSignal.timeout(5000),
-    });
-  } catch {
-    // Silent fail — dashboard visibility is best-effort
-  }
-}
-
-/** Start the heartbeat loop. Sends one immediately, then every 60s. */
+/** Spawn the heartbeat daemon as a detached background process. */
 export function startHeartbeat(): void {
-  if (heartbeatTimer) return; // Already running
+  // Don't double-spawn
+  if (isHeartbeatRunning()) return;
 
-  // Fire immediately so the device shows up right away
-  sendHeartbeat();
+  const daemonScript = join(dirname(__filename), "heartbeat-daemon.js");
 
-  heartbeatTimer = setInterval(sendHeartbeat, HEARTBEAT_INTERVAL_MS);
+  const child = spawn(process.execPath, [daemonScript], {
+    detached: true,
+    stdio: "ignore",
+  });
 
-  // Don't let the heartbeat timer keep the process alive if
-  // everything else is done (shouldn't happen since Syncthing
-  // daemon is the main keep-alive, but just in case)
-  if (heartbeatTimer.unref) {
-    heartbeatTimer.unref();
-  }
+  child.unref();
 }
 
-/** Stop the heartbeat loop. */
+/** Stop the heartbeat daemon if running. */
 export function stopHeartbeat(): void {
-  if (heartbeatTimer) {
-    clearInterval(heartbeatTimer);
-    heartbeatTimer = null;
+  const pid = getHeartbeatPid();
+  if (pid) {
+    try {
+      process.kill(pid, "SIGTERM");
+    } catch {
+      // Already dead
+    }
   }
 }
 
-/** Read package version, fallback to 0.0.0 */
-function getVersion(): string {
+/** Check if the heartbeat daemon is still alive. */
+export function isHeartbeatRunning(): boolean {
+  const pid = getHeartbeatPid();
+  if (!pid) return false;
+
   try {
-    const pkg = require("../package.json");
-    return pkg.version || "0.0.0";
+    process.kill(pid, 0); // Signal 0 = just check if alive
+    return true;
   } catch {
-    return "0.0.0";
+    return false;
+  }
+}
+
+function getHeartbeatPid(): number | null {
+  try {
+    if (!existsSync(HEARTBEAT_PID_FILE)) return null;
+    const raw = readFileSync(HEARTBEAT_PID_FILE, "utf-8").trim();
+    const pid = parseInt(raw, 10);
+    return isNaN(pid) ? null : pid;
+  } catch {
+    return null;
   }
 }
