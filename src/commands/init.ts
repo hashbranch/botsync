@@ -38,6 +38,7 @@ import {
 
 import { createCode } from "../passphrase.js";
 import { startHeartbeat } from "../heartbeat.js";
+import { startEvents } from "../events.js";
 import * as ui from "../ui.js";
 
 /**
@@ -96,6 +97,7 @@ export async function init(): Promise<void> {
   writeNetworkId(networkId);
   writeNetworkSecret(networkSecret);
   startHeartbeat(networkSecret);
+  startEvents();
   ui.stepDone("Network registered");
 
   // Step 6: Register with relay and display the code

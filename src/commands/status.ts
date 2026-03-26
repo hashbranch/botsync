@@ -4,8 +4,9 @@
  * Shows connected peers, device ID, and per-folder sync state.
  */
 
-import { readConfig, FOLDERS } from "../config.js";
+import { readConfig, FOLDERS, DEFAULT_WEBHOOK_URL } from "../config.js";
 import { apiCall } from "../syncthing.js";
+import { isEventsRunning } from "../events.js";
 import * as ui from "../ui.js";
 
 interface Connection {
@@ -62,5 +63,18 @@ export async function status(): Promise<void> {
     }
   }
 
-  ui.statusTable(peers, config.deviceId || "unknown", folders);
+  // Determine events daemon status
+  const webhookToken = process.env.OPENCLAW_HOOKS_TOKEN || config.webhookToken;
+  let eventsStatus: string;
+  if (!webhookToken) {
+    eventsStatus = "not configured";
+  } else if (isEventsRunning()) {
+    const webhookUrl =
+      process.env.OPENCLAW_HOOKS_URL || config.webhookUrl || DEFAULT_WEBHOOK_URL;
+    eventsStatus = `running (webhook: ${webhookUrl})`;
+  } else {
+    eventsStatus = "stopped";
+  }
+
+  ui.statusTable(peers, config.deviceId || "unknown", folders, eventsStatus);
 }
