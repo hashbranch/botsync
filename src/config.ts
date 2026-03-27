@@ -46,11 +46,19 @@ export const FOLDERS = [
 // Network identity file — stores the network ID for dashboard visibility
 export const NETWORK_FILE = join(BOTSYNC_DIR, "network.json");
 
+// PID file for the events daemon
+export const EVENTS_PID_FILE = join(BOTSYNC_DIR, "events.pid");
+
+// Default OpenClaw webhook URL
+export const DEFAULT_WEBHOOK_URL = "http://127.0.0.1:18789/hooks/agent";
+
 /** Runtime config shape — everything we need to talk to Syncthing */
 export interface BotsyncConfig {
   apiKey: string;
   apiPort: number;
   deviceId?: string;
+  webhookUrl?: string;   // OpenClaw hooks URL (default: http://127.0.0.1:18789/hooks/agent)
+  webhookToken?: string; // OpenClaw hooks bearer token
 }
 
 /** Read the config file, or return null if it doesn't exist */
