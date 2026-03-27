@@ -45,6 +45,9 @@ jobs:
           cache: npm
           registry-url: https://registry.npmjs.org
 
+      - name: Set version from tag
+        run: npm version ${GITHUB_REF_NAME#v} --no-git-tag-version
+
       - run: npm ci
       - run: npm run build
       - run: npm publish
@@ -71,6 +74,7 @@ jobs:
         run: npx wrangler deploy
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: 98f7f5df215cccc750e75aac4bcf76fe
 
   deploy-site:
     needs: test
@@ -90,3 +94,4 @@ jobs:
         run: npx wrangler pages deploy . --project-name=botsync-site
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: 98f7f5df215cccc750e75aac4bcf76fe
