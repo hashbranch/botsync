@@ -1,0 +1,92 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install CLI deps
+        run: npm ci
+
+      - name: Build CLI
+        run: npm run build
+
+      - name: Run CLI tests
+        run: npm test
+
+      - name: Install relay deps
+        working-directory: relay
+        run: npm ci
+
+      - name: Run relay tests
+        working-directory: relay
+        run: npm test
+
+  publish-npm:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          registry-url: https://registry.npmjs.org
+
+      - run: npm ci
+      - run: npm run build
+      - run: npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  deploy-relay:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install relay deps
+        working-directory: relay
+        run: npm ci
+
+      - name: Deploy relay
+        working-directory: relay
+        run: npx wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+
+  deploy-site:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Clone site repo
+        uses: actions/checkout@v4
+        with:
+          repository: hashbranch/botsync-site
+          path: site
+          token: ${{ secrets.GH_PAT }}
+
+      - name: Deploy site
+        working-directory: site
+        run: npx wrangler pages deploy . --project-name=botsync-site
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
