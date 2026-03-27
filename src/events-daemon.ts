@@ -28,16 +28,17 @@ let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
 /** Resolve webhook URL and token from env vars or config. */
 function getWebhookConfig(): { url: string; token: string } | null {
+  const config = readConfig();
   const token =
     process.env.OPENCLAW_HOOKS_TOKEN ||
-    readConfig()?.webhookToken ||
+    config?.webhookToken ||
     null;
 
   if (!token) return null;
 
   const url =
     process.env.OPENCLAW_HOOKS_URL ||
-    readConfig()?.webhookUrl ||
+    config?.webhookUrl ||
     DEFAULT_WEBHOOK_URL;
 
   return { url, token };
@@ -220,14 +221,19 @@ async function main(): Promise<void> {
     } catch {}
   };
   process.on("exit", cleanup);
-  process.on("SIGTERM", () => {
+
+  // Graceful shutdown: flush any pending file events before exiting
+  // so notifications aren't lost if we're killed mid-debounce window.
+  const gracefulShutdown = async () => {
+    if (debounceTimer) {
+      clearTimeout(debounceTimer);
+    }
+    await flushFileEvents();
     cleanup();
     process.exit(0);
-  });
-  process.on("SIGINT", () => {
-    cleanup();
-    process.exit(0);
-  });
+  };
+  process.on("SIGTERM", gracefulShutdown);
+  process.on("SIGINT", gracefulShutdown);
 
   // Health check loop — exit if Syncthing is gone
   setInterval(async () => {
