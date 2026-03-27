@@ -52,3 +52,11 @@ export OPENCLAW_HOOKS_URL=http://127.0.0.1:18789/hooks/agent  # default
 | `OPENCLAW_HOOKS_URL` | Webhook endpoint | `http://127.0.0.1:18789/hooks/agent` |
 
 When configured, botsync sends batched notifications for file sync events (debounced by 2 seconds) and immediate notifications when a new device connects.
+
+## Contributing
+
+We use [GitHub Issues](https://github.com/hashbranch/botsync/issues) to track bugs, feature requests, and improvements. Check the issue list for open items — `good first issue` labels are a great starting point.
+
+## License
+
+MIT
