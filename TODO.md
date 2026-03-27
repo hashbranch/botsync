@@ -46,3 +46,4 @@
 - [ ] Bot-to-bot messaging via files
 - [ ] Routing rules (file goes to folder X based on type)
 - [ ] Schema validation on shared folders
+- [ ] Landing page permanent hosting (here.now expires 24h)

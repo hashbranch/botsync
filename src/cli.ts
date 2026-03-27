@@ -8,6 +8,7 @@
 
 import { Command } from "commander";
 import { init } from "./commands/init.js";
+import { invite } from "./commands/invite.js";
 import { join } from "./commands/join.js";
 import { status } from "./commands/status.js";
 import { stop } from "./commands/stop.js";
@@ -26,6 +27,18 @@ program
   .action(async () => {
     try {
       await init();
+    } catch (err) {
+      ui.error(err instanceof Error ? err.message : String(err));
+      process.exit(1);
+    }
+  });
+
+program
+  .command("invite")
+  .description("Generate a new pairing code to add another machine to this network.")
+  .action(async () => {
+    try {
+      await invite();
     } catch (err) {
       ui.error(err instanceof Error ? err.message : String(err));
       process.exit(1);
