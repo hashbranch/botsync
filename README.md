@@ -1,5 +1,10 @@
 # botsync
 
+[![npm version](https://img.shields.io/npm/v/botsync)](https://www.npmjs.com/package/botsync)
+[![npm downloads](https://img.shields.io/npm/dw/botsync)](https://www.npmjs.com/package/botsync)
+[![CI](https://github.com/hashbranch/botsync/actions/workflows/ci.yml/badge.svg)](https://github.com/hashbranch/botsync/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+
 P2P file sync for AI agents. Two commands. No server.
 
 ## Quick Start
