@@ -15,7 +15,8 @@
 
 import { readConfig, readNetworkId, FOLDERS } from "../config.js";
 import { createCode } from "../passphrase.js";
-import { apiCall, addDevice, addDeviceToFolder } from "../syncthing.js";
+import { apiCall } from "../syncthing.js";
+import { waitForNewPeer } from "../peer-discovery.js";
 import * as ui from "../ui.js";
 
 export async function invite(): Promise<void> {
@@ -64,69 +65,9 @@ export async function invite(): Promise<void> {
 
   // Wait for the joining device to connect and auto-accept it
   const peerSpin = ui.spinner("Waiting for peer...");
-  const accepted = await waitForNewPeer(peerSpin);
+  const accepted = await waitForNewPeer(peerSpin, 600_000);
   if (accepted) {
     peerSpin.stop();
     ui.paired(accepted);
-  }
-}
-
-/**
- * Poll for pending device connections and auto-accept the first new one.
- * Same logic as init's waitForPeer, but factored out to be reusable.
- *
- * Times out after 10 minutes (matching the relay code TTL).
- */
-async function waitForNewPeer(spin: any, timeoutMs = 600_000): Promise<string | null> {
-  // Snapshot the current set of known devices so we only accept new ones
-  const knownDevices = await getKnownDeviceIds();
-  const start = Date.now();
-  const pollInterval = 2000;
-
-  while (Date.now() - start < timeoutMs) {
-    try {
-      const pending = await apiCall<Record<string, unknown>>("GET", "/rest/cluster/pending/devices");
-      const deviceIds = Object.keys(pending);
-
-      // Accept the first pending device we haven't seen before
-      for (const peerId of deviceIds) {
-        if (knownDevices.has(peerId)) continue;
-
-        spin.text = `Accepting ${peerId.substring(0, 7)}...`;
-
-        // Add the device to our config
-        await addDevice(peerId);
-
-        // Share all folders with it
-        for (const folder of FOLDERS) {
-          await addDeviceToFolder(folder.id, peerId);
-        }
-
-        return peerId;
-      }
-    } catch {
-      // API might hiccup during config changes — ignore and retry
-    }
-
-    await new Promise((r) => setTimeout(r, pollInterval));
-  }
-
-  spin.stop();
-  ui.info("No peer connected within 10 minutes.");
-  ui.info("Generate a new code with `botsync invite`.");
-  ui.gap();
-  return null;
-}
-
-/**
- * Get the set of device IDs already known to Syncthing.
- * Used to distinguish genuinely new peers from ones we already have.
- */
-async function getKnownDeviceIds(): Promise<Set<string>> {
-  try {
-    const config = await apiCall<{ devices: Array<{ deviceID: string }> }>("GET", "/rest/config");
-    return new Set(config.devices.map((d) => d.deviceID));
-  } catch {
-    return new Set();
   }
 }
