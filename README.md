@@ -27,6 +27,7 @@ npx botsync join <passphrase>
 
 ```bash
 botsync init              # Initialize and start syncing
+botsync invite            # Generate a new code to add another machine
 botsync join <passphrase> # Connect to another botsync instance
 botsync status            # Show sync status
 botsync stop              # Stop the sync daemon
