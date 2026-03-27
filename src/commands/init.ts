@@ -21,6 +21,7 @@ import {
   FOLDERS,
   writeConfig,
   writeNetworkId,
+  writeNetworkSecret,
 } from "../config.js";
 
 import {
@@ -32,6 +33,7 @@ import {
   apiCall,
   addDevice,
   addDeviceToFolder,
+  cleanupStale,
 } from "../syncthing.js";
 
 import { createCode } from "../passphrase.js";
@@ -49,6 +51,9 @@ function randomPort(): number {
 
 export async function init(): Promise<void> {
   ui.header();
+
+  // Step 0: Kill any stale Syncthing from a previous interrupted run
+  cleanupStale();
 
   // Step 1: Create directory structure
   for (const folder of FOLDERS) {
@@ -82,10 +87,15 @@ export async function init(): Promise<void> {
   const deviceId = await getDeviceId();
   writeConfig({ apiKey, apiPort, deviceId });
 
-  // Step 5b: Generate network ID and start heartbeat
+  // Step 5b: Generate network ID + secret and start heartbeat
+  // SECURITY: networkSecret is a bearer token for relay auth.
+  // It's shared with the joiner via the pairing code (one-time use, 10-min TTL).
+  // The relay stores only sha256(secret), never the plaintext.
   const networkId = randomUUID();
+  const networkSecret = randomUUID();
   writeNetworkId(networkId);
-  startHeartbeat();
+  writeNetworkSecret(networkSecret);
+  startHeartbeat(networkSecret);
   ui.stepDone("Network registered");
 
   // Step 6: Register with relay and display the code
@@ -94,6 +104,7 @@ export async function init(): Promise<void> {
     deviceId,
     folders: FOLDERS.map((f) => f.id),
     networkId,
+    networkSecret,
   });
 
   if (isRelay) {

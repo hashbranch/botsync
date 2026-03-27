@@ -13,16 +13,30 @@ import { BOTSYNC_DIR } from "./config.js";
 
 const HEARTBEAT_PID_FILE = join(BOTSYNC_DIR, "heartbeat.pid");
 
-/** Spawn the heartbeat daemon as a detached background process. */
-export function startHeartbeat(): void {
+/**
+ * Spawn the heartbeat daemon as a detached background process.
+ *
+ * SECURITY: The network secret is passed via environment variable
+ * (BOTSYNC_NETWORK_SECRET) rather than CLI argument, because CLI args
+ * are visible in `ps` output. Env vars are only readable by the process
+ * owner (same user) on Unix systems.
+ */
+export function startHeartbeat(networkSecret?: string): void {
   // Don't double-spawn
   if (isHeartbeatRunning()) return;
 
   const daemonScript = join(dirname(__filename), "heartbeat-daemon.js");
 
+  // Pass secret via env to avoid exposing it in process args
+  const env: NodeJS.ProcessEnv = { ...process.env };
+  if (networkSecret) {
+    env.BOTSYNC_NETWORK_SECRET = networkSecret;
+  }
+
   const child = spawn(process.execPath, [daemonScript], {
     detached: true,
     stdio: "ignore",
+    env,
   });
 
   child.unref();

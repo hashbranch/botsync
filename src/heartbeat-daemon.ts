@@ -10,7 +10,7 @@
  */
 
 import { hostname } from "os";
-import { readConfig, readNetworkId, BOTSYNC_DIR } from "./config.js";
+import { readConfig, readNetworkId, readNetworkSecret, BOTSYNC_DIR } from "./config.js";
 import { writeFileSync, unlinkSync } from "fs";
 import { join } from "path";
 
@@ -27,17 +27,40 @@ function getVersion(): string {
   }
 }
 
+/**
+ * Get the network secret from env (preferred) or disk (fallback).
+ *
+ * SECURITY: Env var is set by the parent process (startHeartbeat) to avoid
+ * exposing the secret in CLI args. Falls back to reading from disk for
+ * cases where the daemon is restarted independently.
+ */
+function getNetworkSecret(): string | null {
+  return process.env.BOTSYNC_NETWORK_SECRET || readNetworkSecret();
+}
+
 async function sendHeartbeat(): Promise<boolean> {
   const config = readConfig();
   const networkId = readNetworkId();
   if (!config?.deviceId || !networkId) return false;
+
+  // Build headers — include auth token if available
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+
+  const secret = getNetworkSecret();
+  if (secret) {
+    // SECURITY: Bearer token authenticates this device to the relay.
+    // The relay validates sha256(token) against the stored hash.
+    headers["Authorization"] = `Bearer ${secret}`;
+  }
 
   try {
     const res = await fetch(
       `${RELAY_URL}/network/${encodeURIComponent(networkId)}/heartbeat`,
       {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify({
           deviceId: config.deviceId,
           name: hostname(),

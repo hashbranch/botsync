@@ -329,19 +329,71 @@ export async function addDeviceToFolder(folderId: string, deviceId: string): Pro
 /**
  * Stop the Syncthing daemon by reading the PID file and sending SIGTERM.
  * Returns true if a process was stopped, false if nothing was running.
+ *
+ * Falls back to pkill if the PID file is stale (process died without cleanup).
  */
 export function stopDaemon(): boolean {
+  let killed = false;
+
+  // Try PID file first
   try {
     const pid = parseInt(readFileSync(PID_FILE, "utf-8").trim(), 10);
     process.kill(pid, "SIGTERM");
+    killed = true;
+  } catch {
+    // PID file missing or process already dead
+  }
 
-    // Clean up PID file
+  // Fallback: kill any syncthing using our config dir (handles stale PID file)
+  try {
+    execSync(`pkill -f "syncthing.*--home=${SYNCTHING_CONFIG_DIR}"`, { stdio: "ignore" });
+    killed = true;
+  } catch {
+    // No matching process — that's fine
+  }
+
+  // Clean up PID file
+  try {
     const { unlinkSync } = require("fs");
     unlinkSync(PID_FILE);
-
-    return true;
   } catch {
-    // No PID file or process already dead — that's fine
-    return false;
+    // Already gone
+  }
+
+  return killed;
+}
+
+/**
+ * Kill any stale Syncthing process that might be left over from a previous run.
+ * Called at the top of `init()` to ensure a clean start.
+ *
+ * This handles the case where the user ^C's out of init — the daemon keeps
+ * running but the CLI doesn't know about it. Next `init` would fail because
+ * the port/config dir is already in use.
+ */
+export function cleanupStale(): void {
+  // Try PID file
+  if (existsSync(PID_FILE)) {
+    try {
+      const pid = parseInt(readFileSync(PID_FILE, "utf-8").trim(), 10);
+      process.kill(pid, "SIGTERM");
+    } catch {
+      // Process already dead — just clean up the file
+    }
+    try {
+      const { unlinkSync } = require("fs");
+      unlinkSync(PID_FILE);
+    } catch {
+      // Already gone
+    }
+  }
+
+  // Also pkill any syncthing using our config dir (catches orphans with no PID file)
+  try {
+    execSync(`pkill -f "syncthing.*--home=${SYNCTHING_CONFIG_DIR}"`, { stdio: "ignore" });
+    // Give it a moment to die
+    execSync("sleep 0.5", { stdio: "ignore" });
+  } catch {
+    // No matching process — clean slate
   }
 }

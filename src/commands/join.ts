@@ -22,6 +22,7 @@ import {
   writeConfig,
   readConfig,
   writeNetworkId,
+  writeNetworkSecret,
 } from "../config.js";
 
 import {
@@ -46,11 +47,13 @@ export async function join(passphrase: string): Promise<void> {
   let remoteId: string;
   let folders: string[];
   let networkId: string | undefined;
+  let networkSecret: string | undefined;
   try {
     const data = await resolveCode(passphrase);
     remoteId = data.deviceId;
     folders = data.folders;
     networkId = data.networkId;
+    networkSecret = data.networkSecret;
     spin0.succeed();
   } catch (err) {
     spin0.fail();
@@ -112,10 +115,13 @@ export async function join(passphrase: string): Promise<void> {
   }
   spin2.stop();
 
-  // Save network ID (inherited from init side) and start heartbeat
+  // Save network ID + secret (inherited from init side) and start heartbeat
   if (networkId) {
     writeNetworkId(networkId);
-    startHeartbeat();
+    if (networkSecret) {
+      writeNetworkSecret(networkSecret);
+    }
+    startHeartbeat(networkSecret);
     ui.connected(remoteId);
     ui.info(`Dashboard: https://botsync.io/dashboard#${networkId}`);
   } else {

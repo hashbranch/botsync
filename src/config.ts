@@ -9,7 +9,7 @@
  * and PID so that all commands can talk to the running Syncthing instance.
  */
 
-import { readFileSync, writeFileSync, mkdirSync } from "fs";
+import { readFileSync, writeFileSync, mkdirSync, chmodSync } from "fs";
 import { join } from "path";
 import { homedir } from "os";
 
@@ -63,25 +63,65 @@ export function readConfig(): BotsyncConfig | null {
   }
 }
 
-/** Write config to disk. Creates parent dirs if needed. */
+/**
+ * Write config to disk. Creates parent dirs if needed.
+ * SECURITY: File permissions set to 0o600 (owner read/write only)
+ * because config.json contains the Syncthing API key.
+ */
 export function writeConfig(config: BotsyncConfig): void {
   mkdirSync(BOTSYNC_DIR, { recursive: true });
   writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2));
+  chmodSync(CONFIG_FILE, 0o600);
 }
 
 /** Read the network ID, or return null if not yet assigned */
 export function readNetworkId(): string | null {
+  const data = readNetworkFile();
+  return data?.networkId || null;
+}
+
+/**
+ * Write the network ID to disk.
+ * SECURITY: File permissions set to 0o600 because network.json
+ * also stores the networkSecret (added in v0.3.0).
+ */
+export function writeNetworkId(networkId: string): void {
+  mkdirSync(BOTSYNC_DIR, { recursive: true });
+  // Preserve existing secret if present
+  const existing = readNetworkFile();
+  const data = { ...existing, networkId };
+  writeFileSync(NETWORK_FILE, JSON.stringify(data, null, 2));
+  chmodSync(NETWORK_FILE, 0o600);
+}
+
+/**
+ * Write the network secret to disk alongside the network ID.
+ * SECURITY: This is the bearer token used to authenticate with the relay.
+ * File permissions are 0o600 (owner only). Never log or display this value.
+ */
+export function writeNetworkSecret(secret: string): void {
+  mkdirSync(BOTSYNC_DIR, { recursive: true });
+  const existing = readNetworkFile();
+  const data = { ...existing, networkSecret: secret };
+  writeFileSync(NETWORK_FILE, JSON.stringify(data, null, 2));
+  chmodSync(NETWORK_FILE, 0o600);
+}
+
+/**
+ * Read the network secret, or return null if not set.
+ * Returns null for pre-v0.3.0 networks that don't have a secret.
+ */
+export function readNetworkSecret(): string | null {
+  const data = readNetworkFile();
+  return data?.networkSecret || null;
+}
+
+/** Internal: read the raw network.json file */
+function readNetworkFile(): { networkId?: string; networkSecret?: string } | null {
   try {
     const raw = readFileSync(NETWORK_FILE, "utf-8");
-    const data = JSON.parse(raw) as { networkId: string };
-    return data.networkId || null;
+    return JSON.parse(raw);
   } catch {
     return null;
   }
-}
-
-/** Write the network ID to disk. */
-export function writeNetworkId(networkId: string): void {
-  mkdirSync(BOTSYNC_DIR, { recursive: true });
-  writeFileSync(NETWORK_FILE, JSON.stringify({ networkId }, null, 2));
 }
