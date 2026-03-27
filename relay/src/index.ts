@@ -26,9 +26,11 @@ import { generateCode, isValidCode } from "./words.js";
 
 /**
  * SHA-256 hash a string, return hex digest.
- * Used to store network secrets — relay never stores plaintext secrets.
+ * Used to store network secrets — relay stores only the hash.
+ * (Plaintext is held briefly in PAIRS KV during the 10-min pairing window,
+ * then deleted on first read.)
  *
- * SECURITY: Uses Web Crypto API (constant-time in the Worker runtime).
+ * SECURITY: Uses Web Crypto API.
  * We store hex(sha256(secret)) and compare against hex(sha256(input)).
  */
 async function sha256(input: string): Promise<string> {
@@ -37,6 +39,19 @@ async function sha256(input: string): Promise<string> {
   return Array.from(new Uint8Array(hash))
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("");
+}
+
+/**
+ * Constant-time string comparison to prevent timing attacks on hash validation.
+ * Both inputs must be the same length (always true for hex SHA-256 digests).
+ */
+function timingSafeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let result = 0;
+  for (let i = 0; i < a.length; i++) {
+    result |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  }
+  return result === 0;
 }
 
 // ── CORS ────────────────────────────────────────────────────
@@ -162,8 +177,10 @@ async function validateNetworkAuth(
     return null; // Registered successfully
   }
 
-  // Compare hashes
-  if (tokenHash !== storedHash) {
+  // Compare hashes — constant-time to prevent timing attacks.
+  // Not exploitable over HTTPS+Cloudflare (timing noise >> comparison delta),
+  // but correct by construction is better than correct by accident.
+  if (!timingSafeEqual(tokenHash, storedHash)) {
     return Response.json(
       { error: "invalid token" },
       { status: 401, headers: cors }
@@ -190,7 +207,7 @@ export default {
 
     // POST /pair — create a pairing code
     // Accepts { deviceId, networkId?, networkSecret? }
-    // Stores sha256(networkSecret) — relay never holds the plaintext
+    // Relay holds plaintext secret in PAIRS KV for ≤10 min (one-time use, auto-expires)
     if (request.method === "POST" && url.pathname === "/pair") {
       // Rate limit: 10 POST /pair per minute per IP
       if (!(await checkRateLimit(env.PAIRS, ip, "pair-post", 10))) {

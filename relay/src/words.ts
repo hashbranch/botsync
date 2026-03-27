@@ -231,25 +231,20 @@ WORDS.push(..._deduped.slice(0, 1024));
  * Generate a 5-word code from random bytes.
  *
  * SECURITY: Uses crypto.getRandomValues (CSPRNG) for uniform random selection.
- * Each word index needs 10 bits (0-1023). We use rejection sampling on
- * Uint16Array values to avoid modulo bias.
+ * Each word index needs 10 bits (0-1023). Since 1024 is a power of 2,
+ * we can bitmask with 0x3FF for perfectly uniform distribution — no modulo
+ * bias, no rejection sampling needed.
  *
  * 5 words × 10 bits = 50 bits entropy. With 10-min TTL and rate limiting
- * (20 req/min per IP), an attacker can try ~200 codes before expiry.
- * 200 / 2^50 ≈ 1.8×10^-13 probability of success. Safe.
+ * (10 req/min per IP), an attacker can try ~100 codes before expiry.
+ * 100 / 2^50 ≈ 8.9×10^-14 probability of success. Safe.
  */
 export function generateCode(): string {
-  const words: string[] = [];
-  while (words.length < 5) {
-    const buf = new Uint16Array(1);
-    crypto.getRandomValues(buf);
-    // Rejection sampling: only accept values 0-1023 to avoid modulo bias
-    const val = buf[0];
-    if (val < 1024) {
-      words.push(WORDS[val]);
-    }
-  }
-  return words.join("-");
+  const buf = new Uint16Array(5);
+  crypto.getRandomValues(buf);
+  return Array.from(buf)
+    .map((v) => WORDS[v & 0x3ff])
+    .join("-");
 }
 
 /**
