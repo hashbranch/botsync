@@ -45,10 +45,16 @@ export function gap(): void {
 }
 
 /**
- * Display the passphrase in a box.
- * All padding is calculated on plain text, then chalk is applied to content only.
+ * Display the passphrase in a box (short codes) or plain text (long passphrases).
+ *
+ * Short relay codes (4 words, ~30 chars) look great in a box.
+ * Long offline passphrases (200+ chars base58) break the box — terminal wraps
+ * the line, destroying alignment and making it impossible to copy. For those,
+ * we skip the box entirely and print plain indented text that's easy to select.
  */
 export function passphraseBox(passphrase: string, command: string): void {
+  const MAX_BOX_WIDTH = 70;
+
   const lines = [
     { plain: "Your passphrase:", formatted: bold("Your passphrase:") },
     { plain: "", formatted: "" },
@@ -58,11 +64,24 @@ export function passphraseBox(passphrase: string, command: string): void {
     { plain: command, formatted: chalk.white(command) },
   ];
 
-  // Box width based on longest plain text line + 2 for padding
   const maxPlain = Math.max(...lines.map((l) => l.plain.length));
-  const innerWidth = maxPlain + 2;
 
+  // If any line exceeds terminal-safe width, skip the box entirely
+  if (maxPlain > MAX_BOX_WIDTH) {
+    console.log(`${INDENT}${bold("Your passphrase:")}`);
+    console.log();
+    console.log(`${INDENT}${brand(passphrase)}`);
+    console.log();
+    console.log(`${INDENT}${dim("On the other machine:")}`);
+    console.log(`${INDENT}${chalk.white(command)}`);
+    return;
+  }
+
+  // Short content — draw a nice box
+  // innerWidth = content area between │ bars (leading space + text + trailing space)
+  const innerWidth = maxPlain + 2;
   const hr = "─".repeat(innerWidth);
+
   console.log(`${INDENT}${dim("┌" + hr + "┐")}`);
   for (const line of lines) {
     const padding = " ".repeat(innerWidth - line.plain.length - 1);

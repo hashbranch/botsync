@@ -32,6 +32,7 @@ import {
   apiCall,
   addDevice,
   addDeviceToFolder,
+  cleanupStale,
 } from "../syncthing.js";
 
 import { createCode } from "../passphrase.js";
@@ -49,6 +50,9 @@ function randomPort(): number {
 
 export async function init(): Promise<void> {
   ui.header();
+
+  // Step 0: Kill any stale Syncthing from a previous interrupted run
+  cleanupStale();
 
   // Step 1: Create directory structure
   for (const folder of FOLDERS) {
