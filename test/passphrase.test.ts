@@ -110,6 +110,6 @@ describe("resolveCode", () => {
       json: async () => ({ error: "code expired" }),
     });
 
-    await expect(resolveCode("castle-river-falcon-dawn-maple")).rejects.toThrow("code expired");
+    await expect(resolveCode("castle-river-falcon-dawn-maple")).rejects.toThrow("Pairing code not found");
   });
 });
