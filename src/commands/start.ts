@@ -24,10 +24,11 @@ export async function start(): Promise<void> {
 
   // Check if already running
   try {
-    await fetch(`http://127.0.0.1:${config.apiPort}/rest/system/ping`, {
+    const res = await fetch(`http://127.0.0.1:${config.apiPort}/rest/system/ping`, {
       headers: { "X-API-Key": config.apiKey },
       signal: AbortSignal.timeout(2000),
     });
+    if (!res.ok) throw new Error(`ping failed: ${res.statusText}`);
     ui.stepDone("Daemon already running");
   } catch {
     // Not running — start it
@@ -47,6 +48,10 @@ export async function start(): Promise<void> {
     ui.stepDone("Heartbeat running");
   }
 
-  startEvents();
+  if (config.webhookToken || process.env.OPENCLAW_HOOKS_TOKEN) {
+    startEvents();
+    ui.stepDone("Events running");
+  }
+
   ui.stepDone("Ready");
 }
