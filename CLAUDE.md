@@ -50,6 +50,18 @@ cd relay && npm test        # Relay integration tests
 
 State stored in Cloudflare KV (`PAIRS` and `NETWORKS` namespaces).
 
+## Folder Convention
+
+The `~/sync` directory (default sync root) has three subfolders:
+
+| Folder          | Purpose                                     |
+|-----------------|---------------------------------------------|
+| `shared/`       | Bidirectional — both sides read and write    |
+| `deliverables/` | Agent drops outputs here for human review    |
+| `inbox/`        | Human drops files here for agent to process  |
+
+This convention is user-facing and should be respected when adding features that interact with the file system.
+
 ## Key Conventions
 
 - **CommonJS throughout CLI** — chalk v4 and ora v5 are used specifically for CJS compat. Don't upgrade to ESM versions.
