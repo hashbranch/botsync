@@ -143,13 +143,20 @@ export function connected(deviceId: string): void {
 export function statusTable(
   peers: number,
   deviceId: string,
-  folders: Array<{ name: string; synced: boolean; state: string; lastChange?: string }>
+  folders: Array<{ name: string; synced: boolean; state: string; lastChange?: string }>,
+  eventsStatus?: string
 ): void {
   header();
 
   const peerStr = peers > 0 ? success(`${peers} connected`) : warn("0 connected");
   console.log(`${INDENT}${dim("Peers")}    ${peerStr}`);
   console.log(`${INDENT}${dim("Device")}   ${brand(deviceId.substring(0, 7))}${dim("...")}`);
+  if (eventsStatus) {
+    const eventsStr = eventsStatus.startsWith("running")
+      ? success(eventsStatus)
+      : dim(eventsStatus);
+    console.log(`${INDENT}${dim("Events")}   ${eventsStr}`);
+  }
   console.log();
 
   for (const f of folders) {

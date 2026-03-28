@@ -30,14 +30,14 @@ import {
   startDaemon,
   waitForStart,
   getDeviceId,
-  apiCall,
-  addDevice,
-  addDeviceToFolder,
   cleanupStale,
 } from "../syncthing.js";
 
+import { waitForNewPeer } from "../peer-discovery.js";
+
 import { createCode } from "../passphrase.js";
 import { startHeartbeat } from "../heartbeat.js";
+import { startEvents } from "../events.js";
 import * as ui from "../ui.js";
 
 /**
@@ -96,6 +96,7 @@ export async function init(): Promise<void> {
   writeNetworkId(networkId);
   writeNetworkSecret(networkSecret);
   startHeartbeat(networkSecret);
+  startEvents();
   ui.stepDone("Network registered");
 
   // Step 6: Register with relay and display the code
@@ -121,54 +122,9 @@ export async function init(): Promise<void> {
 
   // Step 7: Wait for the joining device to connect and auto-accept it
   const peerSpin = ui.spinner("Waiting for peer...");
-  const accepted = await waitForPeer(apiKey, apiPort, peerSpin);
+  const accepted = await waitForNewPeer(peerSpin);
   if (accepted) {
     peerSpin.stop();
     ui.paired(accepted);
   }
-}
-
-/**
- * Poll for pending device connections and auto-accept the first one.
- * After accepting the device, share all botsync folders with it.
- *
- * Times out after 5 minutes — if nobody joins by then, they can still
- * join later (they'll just show up as pending until the user restarts
- * init or manually approves via the API).
- */
-async function waitForPeer(apiKey: string, apiPort: number, spin: any, timeoutMs = 300_000): Promise<string | null> {
-  const start = Date.now();
-  const pollInterval = 2000;
-
-  while (Date.now() - start < timeoutMs) {
-    try {
-      const pending = await apiCall<Record<string, unknown>>("GET", "/rest/cluster/pending/devices");
-      const deviceIds = Object.keys(pending);
-
-      if (deviceIds.length > 0) {
-        const peerId = deviceIds[0];
-        spin.text = `Accepting ${peerId.substring(0, 7)}...`;
-
-        // Add the device to our config
-        await addDevice(peerId);
-
-        // Share all folders with it
-        for (const folder of FOLDERS) {
-          await addDeviceToFolder(folder.id, peerId);
-        }
-
-        return peerId;
-      }
-    } catch {
-      // API might hiccup during config changes — ignore and retry
-    }
-
-    await new Promise((r) => setTimeout(r, pollInterval));
-  }
-
-  spin.stop();
-  ui.info("No peer connected within 5 minutes.");
-  ui.info("The passphrase is still valid — join anytime, then restart init.");
-  ui.gap();
-  return null;
 }

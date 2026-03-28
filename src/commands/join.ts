@@ -37,6 +37,7 @@ import {
 
 import { resolveCode } from "../passphrase.js";
 import { startHeartbeat } from "../heartbeat.js";
+import { startEvents } from "../events.js";
 import * as ui from "../ui.js";
 
 export async function join(passphrase: string): Promise<void> {
@@ -122,6 +123,7 @@ export async function join(passphrase: string): Promise<void> {
       writeNetworkSecret(networkSecret);
     }
     startHeartbeat(networkSecret);
+    startEvents();
     ui.connected(remoteId);
     ui.info(`Dashboard: https://botsync.io/dashboard#${networkId}`);
   } else {

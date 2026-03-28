@@ -71,8 +71,16 @@ export async function resolveCode(code: string): Promise<PassphraseData> {
     });
 
     if (!res.ok) {
-      const body = (await res.json()) as { error?: string };
-      throw new Error(body.error || `Relay returned ${res.status}`);
+      switch (res.status) {
+        case 404:
+          throw new Error("Pairing code not found. It may have expired (codes last 10 minutes) or already been used. Ask your peer for a new code.");
+        case 429:
+          throw new Error("Too many attempts. Wait a minute and try again.");
+        default: {
+          const body = await res.json().catch(() => ({})) as { error?: string };
+          throw new Error(body.error || `Relay error (${res.status}). Try again or check your internet connection.`);
+        }
+      }
     }
 
     const { deviceId, networkId, networkSecret } = (await res.json()) as {
