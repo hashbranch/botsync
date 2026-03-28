@@ -5,10 +5,22 @@
  * and auto-accept them into the Syncthing config.
  */
 
+import { createInterface } from "readline/promises";
 import { Ora } from "ora";
 import { FOLDERS } from "./config.js";
 import { apiCall, addDevice, addDeviceToFolder } from "./syncthing.js";
 import * as ui from "./ui.js";
+
+/** Prompt the user with a yes/no question. Returns true for yes. */
+async function confirm(question: string): Promise<boolean> {
+  const rl = createInterface({ input: process.stdin, output: process.stdout });
+  try {
+    const answer = await rl.question(question);
+    return answer.trim().toLowerCase() !== "n";
+  } finally {
+    rl.close();
+  }
+}
 
 /**
  * Get the set of device IDs already known to Syncthing.
@@ -47,7 +59,20 @@ export async function waitForNewPeer(spin: Ora, timeoutMs = 300_000): Promise<st
       for (const peerId of deviceIds) {
         if (knownDevices.has(peerId)) continue;
 
-        spin.text = `Accepting ${peerId.substring(0, 7)}...`;
+        // Pause spinner and ask for confirmation
+        spin.stop();
+        ui.gap();
+        ui.info(`Device wants to connect: ${peerId.substring(0, 7)}...`);
+        const accepted = await confirm(`  Accept this device? [Y/n] `);
+
+        if (!accepted) {
+          ui.info("Declined. Waiting for another peer...");
+          knownDevices.add(peerId); // Don't ask about this one again
+          spin.start("Waiting for peer...");
+          continue;
+        }
+
+        spin.start(`Accepting ${peerId.substring(0, 7)}...`);
 
         await addDevice(peerId);
 
