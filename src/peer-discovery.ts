@@ -5,21 +5,21 @@
  * and auto-accept them into the Syncthing config.
  */
 
-import { createInterface } from "readline";
+import { createInterface } from "readline/promises";
 import { Ora } from "ora";
 import { FOLDERS } from "./config.js";
 import { apiCall, addDevice, addDeviceToFolder } from "./syncthing.js";
 import * as ui from "./ui.js";
 
 /** Prompt the user with a yes/no question. Returns true for yes. */
-function confirm(question: string): Promise<boolean> {
+async function confirm(question: string): Promise<boolean> {
   const rl = createInterface({ input: process.stdin, output: process.stdout });
-  return new Promise((resolve) => {
-    rl.question(question, (answer) => {
-      rl.close();
-      resolve(answer.trim().toLowerCase() !== "n");
-    });
-  });
+  try {
+    const answer = await rl.question(question);
+    return answer.trim().toLowerCase() !== "n";
+  } finally {
+    rl.close();
+  }
 }
 
 /**
