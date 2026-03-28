@@ -11,6 +11,7 @@ import { init } from "./commands/init.js";
 import { invite } from "./commands/invite.js";
 import { join } from "./commands/join.js";
 import { status } from "./commands/status.js";
+import { start } from "./commands/start.js";
 import { stop } from "./commands/stop.js";
 import * as ui from "./ui.js";
 
@@ -63,6 +64,18 @@ program
   .action(async () => {
     try {
       await status();
+    } catch (err) {
+      ui.error(err instanceof Error ? err.message : String(err));
+      process.exit(1);
+    }
+  });
+
+program
+  .command("start")
+  .description("Restart botsync daemons without reinitializing.")
+  .action(async () => {
+    try {
+      await start();
     } catch (err) {
       ui.error(err instanceof Error ? err.message : String(err));
       process.exit(1);
