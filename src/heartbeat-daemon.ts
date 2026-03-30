@@ -15,7 +15,7 @@ import { writeFileSync, unlinkSync } from "fs";
 import { join } from "path";
 
 const RELAY_URL = "https://relay.botsync.io";
-const HEARTBEAT_INTERVAL_MS = 60_000;
+const HEARTBEAT_INTERVAL_MS = 300_000; // 5 minutes — balances liveness with KV write quota
 const HEALTH_CHECK_INTERVAL_MS = 120_000; // Check if Syncthing is alive every 2 min
 const PID_FILE = join(BOTSYNC_DIR, "heartbeat.pid");
 

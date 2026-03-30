@@ -1,6 +1,6 @@
 name = "botsync-relay"
 main = "src/index.ts"
-compatibility_date = "2024-01-01"
+compatibility_date = "2025-01-01"
 account_id = "98f7f5df215cccc750e75aac4bcf76fe"
 
 routes = [
