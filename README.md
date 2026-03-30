@@ -37,7 +37,8 @@ botsync init              # Initialize and start syncing
 botsync invite            # Generate a new code to add another machine
 botsync join <passphrase> # Connect to another botsync instance
 botsync start             # Restart daemons (after reboot or stop)
-botsync status            # Show sync status
+botsync status            # Show sync status and version
+botsync update            # Check for updates and install latest
 botsync stop              # Stop the sync daemon
 ```
 
