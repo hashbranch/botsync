@@ -144,10 +144,14 @@ export function statusTable(
   peers: number,
   deviceId: string,
   folders: Array<{ name: string; synced: boolean; state: string; lastChange?: string }>,
-  eventsStatus?: string
+  eventsStatus?: string,
+  version?: string
 ): void {
   header();
 
+  if (version) {
+    console.log(`${INDENT}${dim("Version")}  ${dim("v" + version)}`);
+  }
   const peerStr = peers > 0 ? success(`${peers} connected`) : warn("0 connected");
   console.log(`${INDENT}${dim("Peers")}    ${peerStr}`);
   console.log(`${INDENT}${dim("Device")}   ${brand(deviceId.substring(0, 7))}${dim("...")}`);

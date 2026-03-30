@@ -13,6 +13,8 @@ import { join } from "./commands/join.js";
 import { status } from "./commands/status.js";
 import { start } from "./commands/start.js";
 import { stop } from "./commands/stop.js";
+import { update } from "./commands/update.js";
+import { VERSION } from "./version.js";
 import * as ui from "./ui.js";
 
 const program = new Command();
@@ -20,7 +22,7 @@ const program = new Command();
 program
   .name("botsync")
   .description("P2P file sync for AI agents.")
-  .version("0.1.0");
+  .version(VERSION);
 
 program
   .command("init")
@@ -76,6 +78,18 @@ program
   .action(async () => {
     try {
       await start();
+    } catch (err) {
+      ui.error(err instanceof Error ? err.message : String(err));
+      process.exit(1);
+    }
+  });
+
+program
+  .command("update")
+  .description("Check for updates and install the latest version.")
+  .action(async () => {
+    try {
+      await update();
     } catch (err) {
       ui.error(err instanceof Error ? err.message : String(err));
       process.exit(1);
