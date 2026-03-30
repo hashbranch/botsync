@@ -7,7 +7,7 @@ import { encode, decode, createCode, resolveCode, type PassphraseData } from "..
 
 const SAMPLE_DATA: PassphraseData = {
   deviceId: "ABCDEFG-1234567-HIJKLMN-OPQRSTU-VWXYZ01-2345678-9ABCDEF-GHIJKLM",
-  folders: ["botsync-shared", "botsync-deliverables", "botsync-inbox"],
+  folders: ["botsync-shared"],
   networkId: "net-123",
   networkSecret: "secret-456",
 };

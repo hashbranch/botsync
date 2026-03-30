@@ -19,6 +19,7 @@ import {
   BOTSYNC_DIR,
   SYNCTHING_CONFIG_DIR,
   FOLDERS,
+  MANIFEST_FILE,
   writeConfig,
   writeNetworkId,
   writeNetworkSecret,
@@ -49,18 +50,60 @@ function randomPort(): number {
   return 27000 + Math.floor(Math.random() * 10000);
 }
 
+/** Generate the BOTSYNC.md manifest for the sync root. */
+function generateManifest(): string {
+  return `# Botsync
+
+This folder is synced in real time between paired machines using [botsync](https://github.com/hashbranch/botsync).
+
+## shared/
+
+Read and write freely. All paired machines see changes immediately.
+Organize this folder however you like — create subfolders, drop files, etc.
+
+## How it works
+
+- Files sync peer-to-peer (no cloud server)
+- Changes appear on other machines within seconds
+- If the same file is edited on two machines simultaneously, Syncthing keeps the latest version and saves the other as a \`.sync-conflict\` file — nothing is lost
+
+## For agents
+
+If you are an AI agent with access to this folder:
+- You can read and write files in \`shared/\` to communicate with other machines and agents
+- Check for new files periodically or watch for changes
+- Avoid writing to the same file that another agent is actively writing to
+- Use subdirectories to organize by purpose (e.g. \`shared/tasks/\`, \`shared/output/\`)
+- The \`.botsync/\` directory is internal — do not modify it
+
+## Commands
+
+\`\`\`bash
+botsync status   # Check sync status and connected peers
+botsync invite   # Add another machine to this network
+botsync stop     # Stop syncing
+botsync start    # Resume syncing
+botsync update   # Update to the latest version
+\`\`\`
+`;
+}
+
 export async function init(): Promise<void> {
   ui.header();
 
   // Step 0: Kill any stale Syncthing from a previous interrupted run
   cleanupStale();
 
-  // Step 1: Create directory structure
+  // Step 1: Create directory structure + manifest
   for (const folder of FOLDERS) {
     mkdirSync(folder.path, { recursive: true });
   }
   mkdirSync(BOTSYNC_DIR, { recursive: true });
   mkdirSync(SYNCTHING_CONFIG_DIR, { recursive: true });
+
+  if (!existsSync(MANIFEST_FILE)) {
+    writeFileSync(MANIFEST_FILE, generateManifest());
+  }
   ui.stepDone("Sync folders created");
 
   // Step 2: Download Syncthing binary (skips if already present)

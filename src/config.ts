@@ -36,12 +36,13 @@ export const CONFIG_FILE = join(BOTSYNC_DIR, "config.json");
 // PID file for the daemon
 export const PID_FILE = join(BOTSYNC_DIR, "daemon.pid");
 
-// The three standard sync folders
+// Sync folders — just shared/ by default. Users can organize within it.
 export const FOLDERS = [
   { id: "botsync-shared", path: join(SYNC_DIR, "shared") },
-  { id: "botsync-deliverables", path: join(SYNC_DIR, "deliverables") },
-  { id: "botsync-inbox", path: join(SYNC_DIR, "inbox") },
 ];
+
+// Manifest file — tells agents what this folder is and how to use it
+export const MANIFEST_FILE = join(SYNC_DIR, "BOTSYNC.md");
 
 // Network identity file — stores the network ID for dashboard visibility
 export const NETWORK_FILE = join(BOTSYNC_DIR, "network.json");

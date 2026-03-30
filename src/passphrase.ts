@@ -91,7 +91,7 @@ export async function resolveCode(code: string): Promise<PassphraseData> {
     // Folders are always the standard set — no need to encode them
     return {
       deviceId,
-      folders: ["botsync-shared", "botsync-deliverables", "botsync-inbox"],
+      folders: ["botsync-shared"],
       networkId: networkId || undefined,
       networkSecret: networkSecret || undefined,
     };

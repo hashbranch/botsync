@@ -45,10 +45,13 @@ export async function status(): Promise<void> {
 
   const peers = Object.values(connections.connections).filter((c) => c.connected).length;
 
-  // Get folder statuses
+  // Get folder statuses — query Syncthing for all botsync folders it knows about
   const folders: Array<{ name: string; synced: boolean; state: string; lastChange?: string }> = [];
 
-  for (const f of FOLDERS) {
+  const stConfig = await apiCall<{ folders: Array<{ id: string }> }>("GET", "/rest/config");
+  const botsyncFolders = stConfig.folders.filter((f) => f.id.startsWith("botsync-"));
+
+  for (const f of botsyncFolders) {
     try {
       const s = await apiCall<FolderStatus>("GET", `/rest/db/status?folder=${f.id}`);
       const synced = s.state === "idle" && s.needFiles === 0;
