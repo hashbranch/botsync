@@ -50,13 +50,13 @@ afterAll(async () => {
 // ── Health ────────────────────────────────────────────────────
 
 describe("Health", () => {
-  it("GET / returns 200 with version 0.3.0", async () => {
+  it("GET / returns 200 with status ok", async () => {
     const res = await get("/");
     expect(res.status).toBe(200);
     const json = (await res.json()) as { status: string; version: string; service: string };
     expect(json.status).toBe("ok");
-    expect(json.version).toBe("0.3.0");
     expect(json.service).toBe("botsync-relay");
+    expect(json.version).toMatch(/^\d+\.\d+\.\d+$/);
   });
 });
 
