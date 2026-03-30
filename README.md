@@ -22,13 +22,16 @@ npx botsync join <passphrase>
 # That's it. ~/sync/ is now shared.
 ```
 
-## Folder Convention
+## Folder Structure
 
-| Folder | Purpose |
-|--------|---------|
-| `shared/` | Bidirectional — both sides read and write |
-| `deliverables/` | Agent drops outputs here for human review |
-| `inbox/` | Human drops files here for agent to process |
+```
+~/sync/
+├── BOTSYNC.md      # Manifest — tells agents what this folder is
+├── shared/         # Read and write freely, all peers see changes
+└── .botsync/       # Internal state (do not modify)
+```
+
+`shared/` is the default sync folder. Organize it however you like — create subdirectories for tasks, output, data, etc. A `BOTSYNC.md` manifest is created at init to guide any agent that lands in the folder.
 
 ## Commands
 
@@ -79,7 +82,7 @@ Syncthing handles conflicts automatically. If the same file is modified on two m
 - The other version is saved as `<filename>.sync-conflict-<date>-<id>.<ext>`
 - Conflict files appear in the same folder — nothing is lost
 
-For the `shared/` folder (bidirectional), conflicts are possible. For `deliverables/` and `inbox/` (one-way by convention), conflicts are rare since each side writes to a different folder.
+To minimize conflicts, avoid editing the same file on multiple machines simultaneously. Use subdirectories to give each machine or agent its own workspace.
 
 ## OpenClaw Notifications
 

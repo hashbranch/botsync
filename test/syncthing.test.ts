@@ -15,11 +15,9 @@ describe("generateConfig", () => {
     expect(xml).toContain("127.0.0.1:28000");
   });
 
-  it("includes all 3 botsync folder IDs", () => {
+  it("includes the botsync-shared folder ID", () => {
     const xml = generateConfig("key", 9999);
     expect(xml).toContain('id="botsync-shared"');
-    expect(xml).toContain('id="botsync-deliverables"');
-    expect(xml).toContain('id="botsync-inbox"');
   });
 
   it("disables auto-upgrade", () => {
