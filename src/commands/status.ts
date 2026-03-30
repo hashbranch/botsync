@@ -7,6 +7,7 @@
 import { readConfig, FOLDERS, DEFAULT_WEBHOOK_URL } from "../config.js";
 import { apiCall } from "../syncthing.js";
 import { isEventsRunning } from "../events.js";
+import { VERSION } from "../version.js";
 import * as ui from "../ui.js";
 
 interface Connection {
@@ -76,5 +77,5 @@ export async function status(): Promise<void> {
     eventsStatus = "stopped";
   }
 
-  ui.statusTable(peers, config.deviceId || "unknown", folders, eventsStatus);
+  ui.statusTable(peers, config.deviceId || "unknown", folders, eventsStatus, VERSION);
 }
