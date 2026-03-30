@@ -13,7 +13,7 @@
  * The joining side uses `botsync join <code>` — same as with init.
  */
 
-import { readConfig, readNetworkId, FOLDERS } from "../config.js";
+import { readConfig, readNetworkId, readNetworkSecret, FOLDERS } from "../config.js";
 import { createCode } from "../passphrase.js";
 import { apiCall } from "../syncthing.js";
 import { waitForNewPeer } from "../peer-discovery.js";
@@ -39,12 +39,14 @@ export async function invite(): Promise<void> {
 
   ui.stepDone("Daemon running");
 
-  // Generate a new pairing code with our existing device ID
+  // Generate a new pairing code with our existing device ID + network secret
   const networkId = readNetworkId() || undefined;
+  const networkSecret = readNetworkSecret() || undefined;
   const { code, isRelay } = await createCode({
     deviceId: config.deviceId,
     folders: FOLDERS.map((f) => f.id),
     networkId,
+    networkSecret,
   });
 
   ui.gap();
