@@ -32,21 +32,39 @@ export async function update(): Promise<void> {
   ui.info(`Update available: ${VERSION} → ${latest}`);
   ui.gap();
 
-  // Detect install method and update accordingly
+  // Try without sudo first, then with sudo on EACCES
   const spin2 = ui.spinner(`Updating to ${latest}...`);
   try {
-    // Try global update first — works if installed globally
     execSync("npm install -g botsync@latest", {
       encoding: "utf-8",
       stdio: "pipe",
     });
     spin2.succeed();
     ui.stepDone(`Updated to ${latest}`);
-  } catch {
-    spin2.fail();
-    ui.info(`Could not auto-update. Run manually:`);
-    ui.gap();
-    ui.info(`  npm install -g botsync@latest`);
-    ui.gap();
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg.includes("EACCES") && process.platform !== "win32") {
+      spin2.text = `Updating to ${latest} (requires sudo)...`;
+      try {
+        execSync("sudo npm install -g botsync@latest", {
+          encoding: "utf-8",
+          stdio: "inherit",
+        });
+        spin2.succeed();
+        ui.stepDone(`Updated to ${latest}`);
+      } catch {
+        spin2.fail();
+        ui.info(`Could not auto-update. Run manually:`);
+        ui.gap();
+        ui.info(`  sudo npm install -g botsync@latest`);
+        ui.gap();
+      }
+    } else {
+      spin2.fail();
+      ui.info(`Could not auto-update. Run manually:`);
+      ui.gap();
+      ui.info(`  npm install -g botsync@latest`);
+      ui.gap();
+    }
   }
 }

@@ -50,17 +50,12 @@ cd relay && npm test        # Relay integration tests
 
 State stored in Cloudflare KV (`PAIRS` and `NETWORKS` namespaces).
 
-## Folder Convention
+## Folder Structure
 
-The `~/sync` directory (default sync root) has three subfolders:
-
-| Folder          | Purpose                                     |
-|-----------------|---------------------------------------------|
-| `shared/`       | Bidirectional — both sides read and write    |
-| `deliverables/` | Agent drops outputs here for human review    |
-| `inbox/`        | Human drops files here for agent to process  |
-
-This convention is user-facing and should be respected when adding features that interact with the file system.
+The `~/sync` directory (default sync root) contains:
+- `shared/` — the sync folder. All peers read and write. Users organize within it as they like.
+- `BOTSYNC.md` — manifest file generated at init. Tells agents what this folder is and how to use it.
+- `.botsync/` — internal state (config, PID files, Syncthing data). Do not modify.
 
 ## Key Conventions
 
