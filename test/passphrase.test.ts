@@ -92,7 +92,7 @@ describe("resolveCode", () => {
     expect(data.deviceId).toBe("REMOTE-DEVICE-ID");
     expect(data.networkId).toBe("net-remote");
     expect(data.networkSecret).toBe("sec-remote");
-    expect(data.folders).toEqual(["botsync-shared", "botsync-deliverables", "botsync-inbox"]);
+    expect(data.folders).toEqual(["botsync-shared"]);
   });
 
   it("decodes base58 strings without hitting relay", async () => {
