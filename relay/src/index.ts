@@ -194,6 +194,7 @@ async function validateNetworkAuth(
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
+    try {
     const url = new URL(request.url);
     const cors = corsHeaders(env, url.pathname);
     const ip = request.headers.get("cf-connecting-ip") || "unknown";
@@ -381,10 +382,11 @@ export default {
           version: (body.version || "0.0.0").slice(0, 16),
         };
 
-        // Store with 5-minute TTL — stale devices auto-expire
+        // Store with 10-minute TTL — stale devices auto-expire.
+        // Heartbeat interval is 5 min, so devices survive one missed beat.
         const key = deviceKey(networkId, device.deviceId);
         await env.NETWORKS.put(key, JSON.stringify(device), {
-          expirationTtl: 300,
+          expirationTtl: 600,
         });
 
         return Response.json({ ok: true }, { headers: cors });
@@ -454,5 +456,11 @@ export default {
       { error: "not found" },
       { status: 404, headers: cors }
     );
+    } catch (err) {
+      return Response.json(
+        { error: "internal error", message: err instanceof Error ? err.message : String(err) },
+        { status: 500 }
+      );
+    }
   },
 };
