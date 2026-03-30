@@ -8,7 +8,7 @@
  */
 
 import { readConfig, readNetworkSecret } from "../config.js";
-import { startDaemon, waitForStart, cleanupStale } from "../syncthing.js";
+import { startDaemon, waitForStart, cleanupStale, removeDeprecatedFolders } from "../syncthing.js";
 import { startHeartbeat } from "../heartbeat.js";
 import { startEvents } from "../events.js";
 import * as ui from "../ui.js";
@@ -40,6 +40,9 @@ export async function start(): Promise<void> {
     await waitForStart();
     spin.succeed();
   }
+
+  // Clean up deprecated folders from pre-v0.5.0 installs
+  await removeDeprecatedFolders();
 
   // Restart background daemons
   const secret = readNetworkSecret();

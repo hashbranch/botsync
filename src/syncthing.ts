@@ -256,6 +256,27 @@ export async function apiCall<T = unknown>(
   return JSON.parse(text) as T;
 }
 
+/** Folder IDs that were removed in v0.5.0. */
+const DEPRECATED_FOLDERS = ["botsync-deliverables", "botsync-inbox"];
+
+/**
+ * Remove deprecated folders from Syncthing config.
+ * Called on start/status to clean up old installs that still have
+ * deliverables/ and inbox/ registered.
+ */
+export async function removeDeprecatedFolders(): Promise<void> {
+  try {
+    const config = await apiCall<{ folders: Array<{ id: string }> }>("GET", "/rest/config");
+    for (const folder of config.folders) {
+      if (DEPRECATED_FOLDERS.includes(folder.id)) {
+        await apiCall("DELETE", `/rest/config/folders/${folder.id}`);
+      }
+    }
+  } catch {
+    // Daemon might not be running — skip silently
+  }
+}
+
 /**
  * Get this device's Syncthing device ID.
  * The device ID is derived from the TLS certificate Syncthing generates
