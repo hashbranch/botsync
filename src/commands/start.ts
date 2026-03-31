@@ -7,7 +7,7 @@
  * Requires botsync to already be initialized (config.json must exist).
  */
 
-import { readConfig, readNetworkSecret } from "../config.js";
+import { readConfig, writeConfig, readNetworkSecret } from "../config.js";
 import { startDaemon, waitForStart, cleanupStale, removeDeprecatedFolders } from "../syncthing.js";
 import { startHeartbeat } from "../heartbeat.js";
 import { startEvents } from "../events.js";
@@ -51,7 +51,18 @@ export async function start(): Promise<void> {
     ui.stepDone("Heartbeat running");
   }
 
-  if (config.webhookToken || process.env.OPENCLAW_HOOKS_TOKEN) {
+  // Persist webhook config from env vars if present but not yet in config
+  const envToken = process.env.OPENCLAW_HOOKS_TOKEN;
+  const envUrl = process.env.OPENCLAW_HOOKS_URL;
+  if (envToken && !config.webhookToken) {
+    writeConfig({
+      ...config,
+      webhookToken: envToken,
+      ...(envUrl && { webhookUrl: envUrl }),
+    });
+  }
+
+  if (config.webhookToken || envToken) {
     startEvents();
     ui.stepDone("Events running");
   }

@@ -92,7 +92,17 @@ export async function join(passphrase: string): Promise<void> {
     spin.succeed();
 
     const myId = await getDeviceId();
-    writeConfig({ apiKey, apiPort, deviceId: myId });
+
+    // Persist webhook config from env vars so status/start can read it later
+    const webhookToken = process.env.OPENCLAW_HOOKS_TOKEN;
+    const webhookUrl = process.env.OPENCLAW_HOOKS_URL;
+    writeConfig({
+      apiKey,
+      apiPort,
+      deviceId: myId,
+      ...(webhookToken && { webhookToken }),
+      ...(webhookUrl && { webhookUrl }),
+    });
   } else {
     // Config exists — make sure daemon is actually running
     const spin = ui.spinner("Starting Syncthing...");

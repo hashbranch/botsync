@@ -128,7 +128,18 @@ export async function init(): Promise<void> {
   spin.succeed();
 
   const deviceId = await getDeviceId();
-  writeConfig({ apiKey, apiPort, deviceId });
+
+  // Persist webhook config from env vars so status/start can read it later
+  // without requiring the env vars to be set again.
+  const webhookToken = process.env.OPENCLAW_HOOKS_TOKEN;
+  const webhookUrl = process.env.OPENCLAW_HOOKS_URL;
+  writeConfig({
+    apiKey,
+    apiPort,
+    deviceId,
+    ...(webhookToken && { webhookToken }),
+    ...(webhookUrl && { webhookUrl }),
+  });
 
   // Step 5b: Generate network ID + secret and start heartbeat
   // SECURITY: networkSecret is a bearer token for relay auth.
