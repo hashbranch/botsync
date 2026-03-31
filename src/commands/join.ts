@@ -23,6 +23,7 @@ import {
   readConfig,
   writeNetworkId,
   writeNetworkSecret,
+  persistWebhookConfig,
 } from "../config.js";
 
 import {
@@ -110,18 +111,7 @@ export async function join(passphrase: string): Promise<void> {
 
   // Persist webhook config from env vars so status/start can read it later.
   // Done after both fresh-init and existing-config paths so it always applies.
-  const envToken = process.env.OPENCLAW_HOOKS_TOKEN;
-  const envUrl = process.env.OPENCLAW_HOOKS_URL;
-  if (envToken) {
-    const current = readConfig();
-    if (current && (envToken !== current.webhookToken || (envUrl && envUrl !== current.webhookUrl))) {
-      writeConfig({
-        ...current,
-        webhookToken: envToken,
-        ...(envUrl && { webhookUrl: envUrl }),
-      });
-    }
-  }
+  persistWebhookConfig();
 
   // Add the remote device and share folders
   const spin2 = ui.spinner("Pairing...");

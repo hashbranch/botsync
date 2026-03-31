@@ -23,6 +23,7 @@ import {
   writeConfig,
   writeNetworkId,
   writeNetworkSecret,
+  persistWebhookConfig,
 } from "../config.js";
 
 import {
@@ -129,17 +130,9 @@ export async function init(): Promise<void> {
 
   const deviceId = await getDeviceId();
 
-  // Persist webhook config from env vars so status/start can read it later
-  // without requiring the env vars to be set again.
-  const webhookToken = process.env.OPENCLAW_HOOKS_TOKEN;
-  const webhookUrl = process.env.OPENCLAW_HOOKS_URL;
-  writeConfig({
-    apiKey,
-    apiPort,
-    deviceId,
-    ...(webhookToken && { webhookToken }),
-    ...(webhookUrl && { webhookUrl }),
-  });
+  // Write final config with device ID, then persist any webhook env vars
+  writeConfig({ apiKey, apiPort, deviceId });
+  persistWebhookConfig();
 
   // Step 5b: Generate network ID + secret and start heartbeat
   // SECURITY: networkSecret is a bearer token for relay auth.
