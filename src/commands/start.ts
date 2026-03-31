@@ -51,10 +51,10 @@ export async function start(): Promise<void> {
     ui.stepDone("Heartbeat running");
   }
 
-  // Persist webhook config from env vars if present but not yet in config
+  // Persist webhook config from env vars if changed or missing
   const envToken = process.env.OPENCLAW_HOOKS_TOKEN;
   const envUrl = process.env.OPENCLAW_HOOKS_URL;
-  if (envToken && !config.webhookToken) {
+  if (envToken && (envToken !== config.webhookToken || (envUrl && envUrl !== config.webhookUrl))) {
     writeConfig({
       ...config,
       webhookToken: envToken,

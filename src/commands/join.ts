@@ -92,17 +92,7 @@ export async function join(passphrase: string): Promise<void> {
     spin.succeed();
 
     const myId = await getDeviceId();
-
-    // Persist webhook config from env vars so status/start can read it later
-    const webhookToken = process.env.OPENCLAW_HOOKS_TOKEN;
-    const webhookUrl = process.env.OPENCLAW_HOOKS_URL;
-    writeConfig({
-      apiKey,
-      apiPort,
-      deviceId: myId,
-      ...(webhookToken && { webhookToken }),
-      ...(webhookUrl && { webhookUrl }),
-    });
+    writeConfig({ apiKey, apiPort, deviceId: myId });
   } else {
     // Config exists — make sure daemon is actually running
     const spin = ui.spinner("Starting Syncthing...");
@@ -115,6 +105,21 @@ export async function join(passphrase: string): Promise<void> {
       ui.stepDone(`Daemon restarted (PID ${pid})`);
       await waitForStart();
       spin.succeed();
+    }
+  }
+
+  // Persist webhook config from env vars so status/start can read it later.
+  // Done after both fresh-init and existing-config paths so it always applies.
+  const envToken = process.env.OPENCLAW_HOOKS_TOKEN;
+  const envUrl = process.env.OPENCLAW_HOOKS_URL;
+  if (envToken) {
+    const current = readConfig();
+    if (current && (envToken !== current.webhookToken || (envUrl && envUrl !== current.webhookUrl))) {
+      writeConfig({
+        ...current,
+        webhookToken: envToken,
+        ...(envUrl && { webhookUrl: envUrl }),
+      });
     }
   }
 
