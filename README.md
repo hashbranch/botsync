@@ -86,19 +86,59 @@ To minimize conflicts, avoid editing the same file on multiple machines simultan
 
 ## OpenClaw Notifications
 
-botsync can push notifications to [OpenClaw](https://openclaw.ai) whenever a file is synced or a new device connects. This is opt-in — set the token to enable it.
+botsync can push notifications to [OpenClaw](https://openclaw.ai) whenever a file is synced or a new device connects. This lets your agent react to incoming files in real time.
+
+### Setup
+
+**1. Enable hooks in OpenClaw** — add to your `openclaw.json` (or equivalent config):
+
+```json5
+{
+  "hooks": {
+    "enabled": true,
+    "token": "your-hooks-token"   // must differ from gateway.auth.token
+  }
+}
+```
+
+Restart the gateway after adding the hooks config.
+
+**2. Set the token when running botsync:**
 
 ```bash
-export OPENCLAW_HOOKS_TOKEN=<your-token>
-export OPENCLAW_HOOKS_URL=http://127.0.0.1:18789/hooks/agent  # default
+# Option A: Environment variables (set before init/join/start)
+export OPENCLAW_HOOKS_TOKEN=your-hooks-token
+npx botsync init
+
+# Option B: The token is saved to config.json automatically on first run,
+# so you only need the env var once — subsequent `botsync start` will use
+# the saved config.
 ```
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `OPENCLAW_HOOKS_TOKEN` | Bearer token for the webhook (required) | — |
+| `OPENCLAW_HOOKS_TOKEN` | Bearer token matching your `hooks.token` in OpenClaw config | — |
 | `OPENCLAW_HOOKS_URL` | Webhook endpoint | `http://127.0.0.1:18789/hooks/agent` |
 
-When configured, botsync sends batched notifications for file sync events (debounced by 2 seconds) and immediate notifications when a new device connects.
+### What gets notified
+
+- **File sync events** — batched notifications (2-second debounce) when files are received from a peer. Includes file paths and sizes.
+- **Device connections** — immediate notification when a new device connects to the network.
+
+### How it works
+
+When configured, botsync starts a background events daemon that long-polls the Syncthing Events API. File sync events are batched and sent as a single webhook call. The agent receives a message like:
+
+```
+3 files have been synced via BotSync:
+- ~/sync/shared/report.md (update, 4096 bytes)
+- ~/sync/shared/data.csv (update, 12288 bytes)
+- ~/sync/shared/notes.txt (update, 256 bytes)
+
+Read and process as appropriate.
+```
+
+The webhook posts to `/hooks/agent` which wakes the agent and delivers the message. The agent can then read the synced files and act on them.
 
 ## Contributing
 
