@@ -62,6 +62,30 @@ export interface BotsyncConfig {
   webhookToken?: string; // OpenClaw hooks bearer token
 }
 
+/**
+ * Persist webhook config from env vars (OPENCLAW_HOOKS_TOKEN, OPENCLAW_HOOKS_URL)
+ * into config.json if present and changed. This allows subsequent `botsync start`
+ * calls to pick up webhook config without requiring env vars to be set again.
+ *
+ * No-op if OPENCLAW_HOOKS_TOKEN is not set or config.json doesn't exist.
+ */
+export function persistWebhookConfig(): void {
+  const token = process.env.OPENCLAW_HOOKS_TOKEN;
+  const url = process.env.OPENCLAW_HOOKS_URL;
+  if (!token) return;
+
+  const config = readConfig();
+  if (!config) return;
+
+  if (token !== config.webhookToken || (url && url !== config.webhookUrl)) {
+    writeConfig({
+      ...config,
+      webhookToken: token,
+      ...(url && { webhookUrl: url }),
+    });
+  }
+}
+
 /** Read the config file, or return null if it doesn't exist */
 export function readConfig(): BotsyncConfig | null {
   try {

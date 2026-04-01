@@ -23,6 +23,7 @@ import {
   readConfig,
   writeNetworkId,
   writeNetworkSecret,
+  persistWebhookConfig,
 } from "../config.js";
 
 import {
@@ -107,6 +108,10 @@ export async function join(passphrase: string): Promise<void> {
       spin.succeed();
     }
   }
+
+  // Persist webhook config from env vars so status/start can read it later.
+  // Done after both fresh-init and existing-config paths so it always applies.
+  persistWebhookConfig();
 
   // Add the remote device and share folders
   const spin2 = ui.spinner("Pairing...");

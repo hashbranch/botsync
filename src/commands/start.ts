@@ -7,8 +7,8 @@
  * Requires botsync to already be initialized (config.json must exist).
  */
 
-import { readConfig, readNetworkSecret } from "../config.js";
-import { startDaemon, waitForStart, cleanupStale } from "../syncthing.js";
+import { readConfig, readNetworkSecret, persistWebhookConfig } from "../config.js";
+import { startDaemon, waitForStart, cleanupStale, removeDeprecatedFolders } from "../syncthing.js";
 import { startHeartbeat } from "../heartbeat.js";
 import { startEvents } from "../events.js";
 import * as ui from "../ui.js";
@@ -41,6 +41,9 @@ export async function start(): Promise<void> {
     spin.succeed();
   }
 
+  // Clean up deprecated folders from pre-v0.5.0 installs
+  await removeDeprecatedFolders();
+
   // Restart background daemons
   const secret = readNetworkSecret();
   if (secret) {
@@ -48,7 +51,12 @@ export async function start(): Promise<void> {
     ui.stepDone("Heartbeat running");
   }
 
-  if (config.webhookToken || process.env.OPENCLAW_HOOKS_TOKEN) {
+  // Persist webhook config from env vars if changed or missing
+  persistWebhookConfig();
+
+  // Re-read config to pick up any webhook changes just persisted
+  const updatedConfig = readConfig();
+  if (updatedConfig?.webhookToken) {
     startEvents();
     ui.stepDone("Events running");
   }

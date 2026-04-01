@@ -106,3 +106,118 @@ describe("BOTSYNC_ROOT override", () => {
     expect(cfg.BOTSYNC_DIR).toBe(join(tmpRoot, ".botsync"));
   });
 });
+
+describe("webhook config", () => {
+  it("round-trips webhookToken and webhookUrl", async () => {
+    const cfg = await freshImport();
+    const data = {
+      apiKey: "key-1",
+      apiPort: 27500,
+      webhookToken: "tok-abc",
+      webhookUrl: "http://localhost:18789/hooks/agent",
+    };
+    cfg.writeConfig(data);
+    const read = cfg.readConfig();
+    expect(read?.webhookToken).toBe("tok-abc");
+    expect(read?.webhookUrl).toBe("http://localhost:18789/hooks/agent");
+  });
+
+  it("preserves existing fields when adding webhook config", async () => {
+    const cfg = await freshImport();
+    cfg.writeConfig({ apiKey: "key-1", apiPort: 27500, deviceId: "DEV-1" });
+    cfg.writeConfig({
+      ...cfg.readConfig()!,
+      webhookToken: "tok-new",
+    });
+    const read = cfg.readConfig();
+    expect(read?.apiKey).toBe("key-1");
+    expect(read?.apiPort).toBe(27500);
+    expect(read?.deviceId).toBe("DEV-1");
+    expect(read?.webhookToken).toBe("tok-new");
+  });
+});
+
+describe("persistWebhookConfig", () => {
+  afterEach(() => {
+    delete process.env.OPENCLAW_HOOKS_TOKEN;
+    delete process.env.OPENCLAW_HOOKS_URL;
+  });
+
+  it("is a no-op when OPENCLAW_HOOKS_TOKEN is not set", async () => {
+    const cfg = await freshImport();
+    cfg.writeConfig({ apiKey: "k", apiPort: 1234 });
+    cfg.persistWebhookConfig();
+    const read = cfg.readConfig();
+    expect(read?.webhookToken).toBeUndefined();
+  });
+
+  it("is a no-op when no config exists", async () => {
+    const cfg = await freshImport();
+    process.env.OPENCLAW_HOOKS_TOKEN = "tok-1";
+    // Should not throw — gracefully returns
+    cfg.persistWebhookConfig();
+    expect(cfg.readConfig()).toBeNull();
+  });
+
+  it("persists token from env var into config", async () => {
+    const cfg = await freshImport();
+    cfg.writeConfig({ apiKey: "k", apiPort: 1234 });
+    process.env.OPENCLAW_HOOKS_TOKEN = "tok-from-env";
+    cfg.persistWebhookConfig();
+    const read = cfg.readConfig();
+    expect(read?.webhookToken).toBe("tok-from-env");
+  });
+
+  it("persists both token and URL from env vars", async () => {
+    const cfg = await freshImport();
+    cfg.writeConfig({ apiKey: "k", apiPort: 1234 });
+    process.env.OPENCLAW_HOOKS_TOKEN = "tok-1";
+    process.env.OPENCLAW_HOOKS_URL = "http://custom:9999/hooks";
+    cfg.persistWebhookConfig();
+    const read = cfg.readConfig();
+    expect(read?.webhookToken).toBe("tok-1");
+    expect(read?.webhookUrl).toBe("http://custom:9999/hooks");
+  });
+
+  it("does not overwrite when values are unchanged", async () => {
+    const cfg = await freshImport();
+    cfg.writeConfig({ apiKey: "k", apiPort: 1234, webhookToken: "tok-1" });
+    process.env.OPENCLAW_HOOKS_TOKEN = "tok-1";
+
+    // Get the mtime before
+    const statsBefore = statSync(cfg.CONFIG_FILE);
+    // Small delay to ensure mtime would change if file is rewritten
+    await new Promise((r) => setTimeout(r, 50));
+
+    cfg.persistWebhookConfig();
+    const statsAfter = statSync(cfg.CONFIG_FILE);
+    // File should NOT have been rewritten since values are the same
+    expect(statsAfter.mtimeMs).toBe(statsBefore.mtimeMs);
+  });
+
+  it("updates when token changes", async () => {
+    const cfg = await freshImport();
+    cfg.writeConfig({ apiKey: "k", apiPort: 1234, webhookToken: "old-tok" });
+    process.env.OPENCLAW_HOOKS_TOKEN = "new-tok";
+    cfg.persistWebhookConfig();
+    const read = cfg.readConfig();
+    expect(read?.webhookToken).toBe("new-tok");
+    expect(read?.apiKey).toBe("k"); // existing fields preserved
+  });
+
+  it("does not clobber existing webhook URL when only token env var is set", async () => {
+    const cfg = await freshImport();
+    cfg.writeConfig({
+      apiKey: "k",
+      apiPort: 1234,
+      webhookToken: "old-tok",
+      webhookUrl: "http://existing:8080/hooks",
+    });
+    process.env.OPENCLAW_HOOKS_TOKEN = "new-tok";
+    // OPENCLAW_HOOKS_URL is NOT set
+    cfg.persistWebhookConfig();
+    const read = cfg.readConfig();
+    expect(read?.webhookToken).toBe("new-tok");
+    expect(read?.webhookUrl).toBe("http://existing:8080/hooks"); // preserved
+  });
+});
