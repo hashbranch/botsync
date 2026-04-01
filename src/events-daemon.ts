@@ -17,10 +17,12 @@ import { readConfig, BOTSYNC_DIR, SYNC_DIR, DEFAULT_WEBHOOK_URL } from "./config
 import { writeFileSync, unlinkSync, statSync } from "fs";
 import { join } from "path";
 import { homedir } from "os";
+import { createLogger } from "./log.js";
 
 const PID_FILE = join(BOTSYNC_DIR, "events.pid");
 const DEBOUNCE_MS = 2000;
 const HEALTH_CHECK_INTERVAL_MS = 120_000;
+const logger = createLogger("events");
 
 // Pending file events to batch into a single notification
 let pendingFiles: Array<{ path: string; action: string; size: number }> = [];
@@ -51,7 +53,7 @@ async function sendWebhook(
   body: object
 ): Promise<void> {
   try {
-    await fetch(url, {
+    const res = await fetch(url, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${token}`,
@@ -60,8 +62,15 @@ async function sendWebhook(
       body: JSON.stringify(body),
       signal: AbortSignal.timeout(5000),
     });
+    if (!res.ok) {
+      logger.warn("webhook delivery failed", "BSYNC_EVENTS_WEBHOOK_DELIVERY_FAILED", {
+        status: res.status,
+        url,
+      });
+    }
   } catch {
     // Best-effort — ignore webhook delivery failures
+    logger.warn("webhook delivery failed", "BSYNC_EVENTS_WEBHOOK_DELIVERY_FAILED", { url });
   }
 }
 
@@ -111,6 +120,7 @@ function queueFileEvent(relativePath: string, action: string): void {
     // File may have been deleted or not accessible
   }
   pendingFiles.push({ path: fullPath, action, size });
+  logger.info("queued synced file event", { path: relativePath, action, size });
 
   if (debounceTimer !== null) {
     clearTimeout(debounceTimer);
@@ -208,11 +218,13 @@ async function pollEvents(lastId: number): Promise<number> {
 async function main(): Promise<void> {
   // Require webhook token to be configured — opt-in only
   if (!getWebhookConfig()) {
+    logger.info("events daemon exiting because webhook is not configured");
     process.exit(0);
   }
 
   // Write our PID so stop can kill us
   writeFileSync(PID_FILE, String(process.pid));
+  logger.info("events daemon started", { pid: process.pid });
 
   // Cleanup PID file on exit
   const cleanup = () => {
@@ -229,6 +241,7 @@ async function main(): Promise<void> {
       clearTimeout(debounceTimer);
     }
     await flushFileEvents();
+    logger.info("events daemon stopped", { pid: process.pid });
     cleanup();
     process.exit(0);
   };
@@ -239,6 +252,7 @@ async function main(): Promise<void> {
   setInterval(async () => {
     const alive = await isSyncthingAlive();
     if (!alive) {
+      logger.warn("events daemon exiting because syncthing is unavailable", "BSYNC_SYNCTHING_API_UNREACHABLE");
       cleanup();
       process.exit(0);
     }
@@ -251,4 +265,8 @@ async function main(): Promise<void> {
   }
 }
 
-main().catch(() => process.exit(1));
+main().catch((err) => {
+  const message = err instanceof Error ? err.message : String(err);
+  logger.error("events daemon crashed", "BSYNC_EVENTS_DAEMON_CRASHED", { error: message });
+  process.exit(1);
+});

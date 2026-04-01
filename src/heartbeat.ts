@@ -10,8 +10,10 @@ import { spawn } from "child_process";
 import { readFileSync, existsSync } from "fs";
 import { join, dirname } from "path";
 import { BOTSYNC_DIR } from "./config.js";
+import { createLogger } from "./log.js";
 
 const HEARTBEAT_PID_FILE = join(BOTSYNC_DIR, "heartbeat.pid");
+const logger = createLogger("heartbeat");
 
 /**
  * Spawn the heartbeat daemon as a detached background process.
@@ -23,7 +25,10 @@ const HEARTBEAT_PID_FILE = join(BOTSYNC_DIR, "heartbeat.pid");
  */
 export function startHeartbeat(networkSecret?: string): void {
   // Don't double-spawn
-  if (isHeartbeatRunning()) return;
+  if (isHeartbeatRunning()) {
+    logger.info("heartbeat daemon already running");
+    return;
+  }
 
   const daemonScript = join(dirname(__filename), "heartbeat-daemon.js");
 
@@ -39,6 +44,7 @@ export function startHeartbeat(networkSecret?: string): void {
     env,
   });
 
+  logger.info("heartbeat daemon spawned", { pid: child.pid });
   child.unref();
 }
 
@@ -48,8 +54,10 @@ export function stopHeartbeat(): void {
   if (pid) {
     try {
       process.kill(pid, "SIGTERM");
+      logger.info("heartbeat daemon stopped", { pid });
     } catch {
       // Already dead
+      logger.warn("heartbeat daemon stop failed", "BSYNC_HEARTBEAT_DAEMON_STOPPED", { pid });
     }
   }
 }

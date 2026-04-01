@@ -30,8 +30,10 @@ import {
   FOLDERS,
   readConfig,
 } from "./config.js";
+import { createLogger } from "./log.js";
 
 const SYNCTHING_VERSION = "2.0.15";
+const logger = createLogger("syncthing");
 
 /**
  * Follow redirects for HTTPS GET — needed because GitHub releases
@@ -88,6 +90,7 @@ export async function downloadSyncthing(): Promise<void> {
   // Check if we already have a usable binary (cached or system)
   if (existsSync(SYNCTHING_BIN)) return;
   if (findSystemSyncthing()) {
+    logger.info("using system syncthing binary");
     return; // Using system Syncthing
   }
 
@@ -98,6 +101,7 @@ export async function downloadSyncthing(): Promise<void> {
   // macOS uses .zip, Linux uses .tar.gz
   const ext = process.platform === "darwin" ? "zip" : "tar.gz";
   const url = `https://github.com/syncthing/syncthing/releases/download/v${SYNCTHING_VERSION}/${slug}.${ext}`;
+  logger.info("downloading syncthing binary", { version: SYNCTHING_VERSION, url });
 
   // Download message handled by caller's UI
 
@@ -130,6 +134,7 @@ export async function downloadSyncthing(): Promise<void> {
   }
 
   chmodSync(SYNCTHING_BIN, 0o755);
+  logger.info("syncthing binary ready", { path: SYNCTHING_BIN });
 
   // Clean up the archive
   const { unlinkSync } = await import("fs");
@@ -216,6 +221,7 @@ export function startDaemon(): number {
 
   // Save PID so we can stop it later
   writeFileSync(PID_FILE, pid.toString());
+  logger.info("syncthing daemon started", { pid, bin });
 
   return pid;
 }
@@ -247,6 +253,11 @@ export async function apiCall<T = unknown>(
 
   if (!res.ok) {
     const text = await res.text();
+    logger.warn("syncthing api call failed", "BSYNC_SYNCTHING_API_UNREACHABLE", {
+      method,
+      path,
+      status: res.status,
+    });
     throw new Error(`Syncthing API error: ${res.status} ${text}`);
   }
 
@@ -270,6 +281,7 @@ export async function removeDeprecatedFolders(): Promise<void> {
     for (const folder of config.folders) {
       if (DEPRECATED_FOLDERS.includes(folder.id)) {
         await apiCall("DELETE", `/rest/config/folders/${folder.id}`);
+        logger.info("removed deprecated syncthing folder", { folderId: folder.id });
       }
     }
   } catch {
@@ -361,6 +373,7 @@ export function stopDaemon(): boolean {
     const pid = parseInt(readFileSync(PID_FILE, "utf-8").trim(), 10);
     process.kill(pid, "SIGTERM");
     killed = true;
+    logger.info("syncthing daemon stopped", { pid, source: "pid-file" });
   } catch {
     // PID file missing or process already dead
   }
@@ -369,6 +382,7 @@ export function stopDaemon(): boolean {
   try {
     execSync(`pkill -f "syncthing.*--home=${SYNCTHING_CONFIG_DIR}"`, { stdio: "ignore" });
     killed = true;
+    logger.info("syncthing daemon stopped", { source: "pkill" });
   } catch {
     // No matching process — that's fine
   }
@@ -398,6 +412,7 @@ export function cleanupStale(): void {
     try {
       const pid = parseInt(readFileSync(PID_FILE, "utf-8").trim(), 10);
       process.kill(pid, "SIGTERM");
+      logger.info("cleaned up stale syncthing daemon", { pid, source: "pid-file" });
     } catch {
       // Process already dead — just clean up the file
     }
@@ -414,6 +429,7 @@ export function cleanupStale(): void {
     execSync(`pkill -f "syncthing.*--home=${SYNCTHING_CONFIG_DIR}"`, { stdio: "ignore" });
     // Give it a moment to die
     execSync("sleep 0.5", { stdio: "ignore" });
+    logger.info("cleaned up stale syncthing daemon", { source: "pkill" });
   } catch {
     // No matching process — clean slate
   }
