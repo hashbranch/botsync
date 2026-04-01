@@ -447,7 +447,7 @@ export default {
     // Health check — unauthenticated (monitoring)
     if (url.pathname === "/") {
       return Response.json(
-        { status: "ok", service: "botsync-relay", version: "0.5.1" },
+        { status: "ok", service: "botsync-relay", version: "0.5.2" },
         { headers: cors }
       );
     }
