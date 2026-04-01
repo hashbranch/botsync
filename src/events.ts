@@ -12,11 +12,17 @@ import { spawn } from "child_process";
 import { readFileSync, existsSync } from "fs";
 import { join, dirname } from "path";
 import { EVENTS_PID_FILE } from "./config.js";
+import { createLogger } from "./log.js";
+
+const logger = createLogger("events");
 
 /** Spawn the events daemon as a detached background process. */
 export function startEvents(): void {
   // Don't double-spawn
-  if (isEventsRunning()) return;
+  if (isEventsRunning()) {
+    logger.info("events daemon already running");
+    return;
+  }
 
   const daemonScript = join(dirname(__filename), "events-daemon.js");
 
@@ -25,6 +31,7 @@ export function startEvents(): void {
     stdio: "ignore",
   });
 
+  logger.info("events daemon spawned", { pid: child.pid });
   child.unref();
 }
 
@@ -34,8 +41,10 @@ export function stopEvents(): void {
   if (pid) {
     try {
       process.kill(pid, "SIGTERM");
+      logger.info("events daemon stopped", { pid });
     } catch {
       // Already dead
+      logger.warn("events daemon stop failed", "BSYNC_EVENTS_DAEMON_STOPPED", { pid });
     }
   }
 }

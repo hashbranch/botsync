@@ -13,11 +13,13 @@ import { hostname } from "os";
 import { readConfig, readNetworkId, readNetworkSecret, BOTSYNC_DIR } from "./config.js";
 import { writeFileSync, unlinkSync } from "fs";
 import { join } from "path";
+import { createLogger } from "./log.js";
 
 const RELAY_URL = "https://relay.botsync.io";
 const HEARTBEAT_INTERVAL_MS = 300_000; // 5 minutes — balances liveness with KV write quota
 const HEALTH_CHECK_INTERVAL_MS = 120_000; // Check if Syncthing is alive every 2 min
 const PID_FILE = join(BOTSYNC_DIR, "heartbeat.pid");
+const logger = createLogger("heartbeat");
 
 function getVersion(): string {
   try {
@@ -41,7 +43,10 @@ function getNetworkSecret(): string | null {
 async function sendHeartbeat(): Promise<boolean> {
   const config = readConfig();
   const networkId = readNetworkId();
-  if (!config?.deviceId || !networkId) return false;
+  if (!config?.deviceId || !networkId) {
+    logger.warn("heartbeat skipped due to missing config", "BSYNC_RELAY_HEARTBEAT_FAILED");
+    return false;
+  }
 
   // Build headers — include auth token if available
   const headers: Record<string, string> = {
@@ -70,8 +75,17 @@ async function sendHeartbeat(): Promise<boolean> {
         signal: AbortSignal.timeout(5000),
       }
     );
+    if (!res.ok) {
+      logger.warn("relay heartbeat failed", "BSYNC_RELAY_HEARTBEAT_FAILED", {
+        status: res.status,
+        networkId,
+      });
+    }
     return res.ok;
   } catch {
+    logger.warn("relay heartbeat failed", "BSYNC_RELAY_HEARTBEAT_FAILED", {
+      networkId,
+    });
     return false;
   }
 }
@@ -97,6 +111,7 @@ async function isSyncthingAlive(): Promise<boolean> {
 async function main(): Promise<void> {
   // Write our PID so stop can kill us
   writeFileSync(PID_FILE, String(process.pid));
+  logger.info("heartbeat daemon started", { pid: process.pid });
 
   // Cleanup PID file on exit
   const cleanup = () => {
@@ -106,10 +121,12 @@ async function main(): Promise<void> {
   };
   process.on("exit", cleanup);
   process.on("SIGTERM", () => {
+    logger.info("heartbeat daemon stopped", { pid: process.pid, signal: "SIGTERM" });
     cleanup();
     process.exit(0);
   });
   process.on("SIGINT", () => {
+    logger.info("heartbeat daemon stopped", { pid: process.pid, signal: "SIGINT" });
     cleanup();
     process.exit(0);
   });
@@ -124,10 +141,15 @@ async function main(): Promise<void> {
   setInterval(async () => {
     const alive = await isSyncthingAlive();
     if (!alive) {
+      logger.warn("heartbeat daemon exiting because syncthing is unavailable", "BSYNC_SYNCTHING_API_UNREACHABLE");
       cleanup();
       process.exit(0);
     }
   }, HEALTH_CHECK_INTERVAL_MS);
 }
 
-main().catch(() => process.exit(1));
+main().catch((err) => {
+  const message = err instanceof Error ? err.message : String(err);
+  logger.error("heartbeat daemon crashed", "BSYNC_HEARTBEAT_DAEMON_CRASHED", { error: message });
+  process.exit(1);
+});

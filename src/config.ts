@@ -36,6 +36,10 @@ export const CONFIG_FILE = join(BOTSYNC_DIR, "config.json");
 // PID file for the daemon
 export const PID_FILE = join(BOTSYNC_DIR, "daemon.pid");
 
+// Diagnostics and support artifacts
+export const LOGS_DIR = join(BOTSYNC_DIR, "logs");
+export const REPORTS_DIR = join(BOTSYNC_DIR, "reports");
+
 // Sync folders — just shared/ by default. Users can organize within it.
 export const FOLDERS = [
   { id: "botsync-shared", path: join(SYNC_DIR, "shared") },
