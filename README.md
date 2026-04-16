@@ -43,7 +43,46 @@ botsync start             # Restart daemons (after reboot or stop)
 botsync status            # Show sync status and version
 botsync update            # Check for updates and install latest
 botsync stop              # Stop the sync daemon
+botsync folder ...        # Manage custom sync folders (see below)
 ```
+
+### Folder Management
+
+`shared/` is the default folder everyone gets from `botsync init`. For use cases that want an additional isolated namespace (per-project, per-team, or with only a subset of paired machines) use `botsync folder`:
+
+```bash
+# Create a new folder and share it with every paired peer
+botsync folder add tera
+# Or: pick the path, sync mode, and specific peers
+botsync folder add tera --path ~/projects/tera --type sendreceive \
+  --devices <deviceIdA>,<deviceIdB>
+
+# See every managed folder and its sync state
+botsync folder list
+
+# Add or remove a peer on an existing folder without touching the others
+botsync folder share tera <deviceId>
+botsync folder unshare tera <deviceId>
+
+# Remove the folder from local Syncthing (prompts; --force to skip).
+# Local files on disk are kept; only the sync config is removed.
+botsync folder remove tera
+```
+
+**Naming rules.** Folder names are lowercase letters, numbers, and hyphens. The names `shared`, `inbox`, `deliverables`, and `botsync` are reserved and will be rejected. The on-disk folder id Syncthing sees is `botsync-<name>` (so `tera` becomes `botsync-tera`).
+
+**Default behaviour of `folder add`:**
+
+- `--path` defaults to `~/sync/<name>` (created if missing).
+- `--type` defaults to `sendreceive`. Use `sendonly` or `receiveonly` for one-way mirrors.
+- `--devices` defaults to every currently paired peer. Pass a comma-separated list of device IDs to share with only a subset.
+
+**Stock Syncthing interop.** A botsync-managed folder is a plain Syncthing folder. Any peer running vanilla Syncthing can accept the share by:
+
+1. Adding the botsync device's ID as a remote device (Syncthing web UI → Add Remote Device).
+2. Accepting the incoming folder share when Syncthing prompts (or enabling "Auto Accept" on the device).
+
+No botsync client is needed on the peer's side. Botsync only adds the pairing-code flow and the CLI ergonomics on top of Syncthing's normal folder-share machinery.
 
 ## How It Works
 
