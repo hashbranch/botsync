@@ -51,7 +51,7 @@ Folder ID convention: `botsync-<name>` to match the existing
 
 New files:
 
-- `src/folders.ts` — pure-ish logic layer:
+- `src/folders.ts` - pure-ish logic layer:
   - `validateFolderName(name)` → throws on invalid.
   - `folderIdFor(name)` → `botsync-<name>`.
   - `nameForFolderId(id)` → strips prefix.
@@ -64,39 +64,39 @@ New files:
   - `shareFolder(name, deviceId)` → adds to folder's `devices` list.
   - `unshareFolder(name, deviceId)` → removes from folder's `devices` list.
   - `getPairedDevices()` → all config devices minus `myID`.
-- `src/commands/folder.ts` — CLI glue for the 5 subcommands. Uses
+- `src/commands/folder.ts` - CLI glue for the 5 subcommands. Uses
   `src/folders.ts` for business logic and `src/ui.ts` for rendering.
 
 Updated files:
 
-- `src/cli.ts` — register `folder` parent command + 5 subcommands.
-- `src/syncthing.ts` — export one small helper (`getFolderConfig(id)`) only if
+- `src/cli.ts` - register `folder` parent command + 5 subcommands.
+- `src/syncthing.ts` - export one small helper (`getFolderConfig(id)`) only if
   needed; otherwise reuse existing `apiCall` directly from `folders.ts`.
-- `README.md` — new `### Folder Management` section + stock-Syncthing
+- `README.md` - new `### Folder Management` section + stock-Syncthing
   interop note.
-- `CHANGELOG.md` — new `[Unreleased]` entry under a `Folder management`
+- `CHANGELOG.md` - new `[Unreleased]` entry under a `Folder management`
   header.
 
 ## Tests (vitest, mocked Syncthing API)
 
 `test/folders.test.ts`:
 
-- `validateFolderName` — rejects slashes, reserved names (`shared`,
+- `validateFolderName` - rejects slashes, reserved names (`shared`,
   `deliverables`, `inbox`, `botsync`, `.botsync`), empty, too long,
   uppercase-only, dot-prefixed. Accepts `tera`, `deal-data-2026`, etc.
 - `folderIdFor` / `nameForFolderId` round-trip.
-- `resolveFolderPath` — default, override, tilde expansion, absolute passthrough.
-- `addFolder` — mocked fetch captures PUT payload:
+- `resolveFolderPath` - default, override, tilde expansion, absolute passthrough.
+- `addFolder` - mocked fetch captures PUT payload:
   - folder id `botsync-<name>`, correct path, type, device list.
   - rejects reserved names before any API call.
   - includes own device ID + each peer.
-- `listFolders` — mocked fetch returns mixed folders; only
+- `listFolders` - mocked fetch returns mixed folders; only
   `botsync-*` IDs surface; default vs custom flagged.
-- `removeFolder` — issues DELETE to correct path; errors if folder missing.
-- `shareFolder` / `unshareFolder` — PUT config with devices list mutated;
+- `removeFolder` - issues DELETE to correct path; errors if folder missing.
+- `shareFolder` / `unshareFolder` - PUT config with devices list mutated;
   rejects when peer is not in known device list.
 
-`test/cli-folder.test.ts` (optional, thin) — only if there's time; skip if
+`test/cli-folder.test.ts` (optional, thin) - only if there's time; skip if
 covered by `folders.test.ts`.
 
 Mocking pattern: `vi.stubGlobal("fetch", vi.fn())` plus a temp `BOTSYNC_ROOT`

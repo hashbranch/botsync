@@ -1,5 +1,5 @@
 /**
- * folders.ts — Custom folder management for botsync.
+ * folders.ts - Custom folder management for botsync.
  *
  * Thin wrapper around Syncthing's REST API that lets users add, list,
  * remove, and share additional folders beyond the default `botsync-shared`.
@@ -77,7 +77,7 @@ interface FolderStatus {
   globalFiles: number;
 }
 
-/** Public shape returned by `listFolders` — what the CLI renders. */
+/** Public shape returned by `listFolders` - what the CLI renders. */
 export interface ManagedFolder {
   id: string;
   name: string;
@@ -91,7 +91,7 @@ export interface ManagedFolder {
 }
 
 // ------------------------------------------------------------------------
-// Name / id helpers — pure, no IO. Kept separate for easy unit testing.
+// Name / id helpers - pure, no IO. Kept separate for easy unit testing.
 // ------------------------------------------------------------------------
 
 /**
@@ -305,7 +305,7 @@ export async function addFolder(opts: AddFolderOptions): Promise<ManagedFolder> 
 
 /**
  * List every botsync-managed folder with enough metadata to render a CLI
- * table. Non-botsync folders are intentionally skipped — `botsync status`
+ * table. Non-botsync folders are intentionally skipped - `botsync status`
  * only manages our own namespace.
  */
 export async function listFolders(): Promise<ManagedFolder[]> {
@@ -325,7 +325,7 @@ export async function listFolders(): Promise<ManagedFolder[]> {
       state = s.state;
       synced = s.state === "idle" && s.needFiles === 0;
     } catch {
-      // Folder added but not yet scanned — fall back to unknown.
+      // Folder added but not yet scanned - fall back to unknown.
     }
 
     result.push({
@@ -345,7 +345,7 @@ export async function listFolders(): Promise<ManagedFolder[]> {
 }
 
 /**
- * Remove a folder from Syncthing config. Does not delete local files — the
+ * Remove a folder from Syncthing config. Does not delete local files - the
  * on-disk directory is left alone so nothing important gets nuked.
  *
  * Refuses to remove the default `shared` folder: that's bootstrapped by
@@ -397,7 +397,7 @@ export async function shareFolder(name: string, deviceId: string): Promise<void>
 
   folder.devices = folder.devices || [];
   if (folder.devices.some((d) => d.deviceID === deviceId)) {
-    // Already shared — no-op.
+    // Already shared - no-op.
     return;
   }
   folder.devices.push({ deviceID: deviceId });
@@ -409,7 +409,7 @@ export async function shareFolder(name: string, deviceId: string): Promise<void>
 
 /**
  * Remove a peer device from an existing folder's share list. Leaves the
- * device paired at the Syncthing level — this only affects one folder.
+ * device paired at the Syncthing level - this only affects one folder.
  */
 export async function unshareFolder(name: string, deviceId: string): Promise<void> {
   const id = folderIdFor(name);
@@ -423,7 +423,7 @@ export async function unshareFolder(name: string, deviceId: string): Promise<voi
   const after = folder.devices.length;
 
   if (after === before) {
-    // Device wasn't sharing this folder — nothing to do, no API call needed.
+    // Device wasn't sharing this folder - nothing to do, no API call needed.
     return;
   }
 

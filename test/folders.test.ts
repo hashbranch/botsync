@@ -1,5 +1,5 @@
 /**
- * folders.test.ts — Unit tests for custom folder management.
+ * folders.test.ts - Unit tests for custom folder management.
  *
  * All Syncthing API calls are mocked via vi.stubGlobal("fetch"). A temp
  * BOTSYNC_ROOT is used with a hand-written config.json so the apiCall
@@ -162,7 +162,7 @@ describe("addFolder", () => {
   it("creates the folder via PUT /rest/config/folders and shares with peers", async () => {
     const { folders } = await freshModules();
     const { calls } = mockFetch([
-      // Current Syncthing config — one existing folder, one paired peer, plus our own device.
+      // Current Syncthing config - one existing folder, one paired peer, plus our own device.
       {
         match: (m, u) => m === "GET" && u.includes("/rest/config"),
         respond: () => ({
@@ -478,7 +478,7 @@ describe("shareFolder / unshareFolder", () => {
         }),
       },
     ]);
-    // Should not throw — nothing to do, and no PUT is issued.
+    // Should not throw - nothing to do, and no PUT is issued.
     await expect(folders.unshareFolder("tera", "PEER-ABC")).resolves.toBeUndefined();
   });
 });

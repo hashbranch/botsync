@@ -1,5 +1,5 @@
 /**
- * folder.ts — The `botsync folder ...` subcommands.
+ * folder.ts - The `botsync folder ...` subcommands.
  *
  * Thin UX layer on top of src/folders.ts. Handles:
  *   - botsync folder add <name> [--path] [--type] [--devices]
@@ -117,7 +117,7 @@ export async function folderAdd(name: string, opts: AddFolderCliOptions): Promis
     ui.info(`They can accept it with:  ${chalk.white(`botsync folder share ${name} <their-device-id>`)}`);
     ui.info("Stock Syncthing peers accept via the web UI's \"Add Folder\" prompt.");
   } else {
-    ui.info("No peers paired yet — pair one with `botsync invite`, then:");
+    ui.info("No peers paired yet. Pair one with `botsync invite`, then:");
     ui.info(`  ${chalk.white(`botsync folder share ${name} <device-id>`)}`);
   }
   ui.gap();

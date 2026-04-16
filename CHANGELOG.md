@@ -1,6 +1,17 @@
 # Changelog
 
-## [0.4.0] - Unreleased (dev)
+## [Unreleased] - dev
+
+### Added
+- **`botsync folder` subcommands** to manage sync folders beyond the default `shared/`:
+  - `folder add <name> [--path] [--type] [--devices]` creates a new folder, creates the local directory if missing, and shares it with paired peers (or a specified subset).
+  - `folder list` shows every botsync-managed folder with its path, type, peer count, and sync state. Marks the default `shared` vs user-added folders.
+  - `folder remove <name> [--force]` unshares locally while keeping the on-disk files (confirmation prompt unless `--force`).
+  - `folder share <name> <deviceId>` / `folder unshare <name> <deviceId>` add or remove a paired peer on an existing folder.
+  - All five commands go through Syncthing's REST API, so stock Syncthing peers can accept the resulting folder shares without a special client.
+- **`src/folders.ts`**: typed API for folder management with validation (rejects slashes, dot-prefixes, reserved names `shared`/`inbox`/`deliverables`/`botsync`), plus 27 vitest unit tests with mocked Syncthing responses.
+
+## [0.4.0]
 
 ### Added
 - **`botsync invite`** — Generate a fresh pairing code to add another machine without reinitializing. Solves the one-time-use code problem.
