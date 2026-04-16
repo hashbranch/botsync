@@ -177,7 +177,7 @@ describe("addFolder", () => {
           },
         }),
       },
-      { match: (m, u) => m === "PUT" && u.includes("/rest/config/folders"), respond: () => ({ body: {} }) },
+      { match: (m, u) => m === "POST" && u.includes("/rest/config/folders"), respond: () => ({ body: {} }) },
     ]);
 
     const teraPath = join(tmpRoot, "tera");
@@ -192,8 +192,8 @@ describe("addFolder", () => {
     expect(result.devices).toContain("PEER-ABC-XYZ");
     expect(result.devices).toContain("MY-DEVICE-ID");
 
-    // Verify the PUT payload matches what Syncthing expects.
-    const put = calls.find((c) => c.method === "PUT" && c.url.includes("/rest/config/folders"));
+    // Verify the POST payload matches what Syncthing expects.
+    const put = calls.find((c) => c.method === "POST" && c.url.includes("/rest/config/folders"));
     expect(put).toBeTruthy();
     const payload = put!.body as {
       id: string; path: string; type: string; label: string;
@@ -250,7 +250,7 @@ describe("addFolder", () => {
           },
         }),
       },
-      { match: (m, u) => m === "PUT", respond: () => ({ body: {} }) },
+      { match: (m, u) => m === "POST", respond: () => ({ body: {} }) },
     ]);
 
     await folders.addFolder({
@@ -260,7 +260,7 @@ describe("addFolder", () => {
       devices: ["PEER-ABC"], // only this one, not PEER-XYZ
     });
 
-    const put = calls.find((c) => c.method === "PUT" && c.url.includes("/rest/config/folders"));
+    const put = calls.find((c) => c.method === "POST" && c.url.includes("/rest/config/folders"));
     const payload = put!.body as { devices: Array<{ deviceID: string }> };
     const ids = payload.devices.map((d) => d.deviceID).sort();
     // Own device always included; PEER-XYZ excluded.
@@ -300,7 +300,7 @@ describe("addFolder", () => {
         match: (m, u) => m === "GET" && u.includes("/rest/config"),
         respond: () => ({ body: { devices: [{ deviceID: "MY-DEVICE-ID" }], folders: [] } }),
       },
-      { match: (m, u) => m === "PUT", respond: () => ({ body: {} }) },
+      { match: (m, u) => m === "POST", respond: () => ({ body: {} }) },
     ]);
     await folders.addFolder({ name: "tera", path: missingPath, type: "sendreceive" });
     expect(existsSync(missingPath)).toBe(true);

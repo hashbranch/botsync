@@ -277,11 +277,11 @@ export async function addFolder(opts: AddFolderOptions): Promise<ManagedFolder> 
     devices: deviceIds.map((deviceID) => ({ deviceID })),
   };
 
-  // POST /rest/config/folders — Syncthing accepts PUT or POST here; PUT is
-  // idempotent and matches how we mutate existing folders elsewhere, but for
-  // "create or replace this one folder" Syncthing documents PUT against the
-  // plural endpoint, so that's what we use.
-  await apiCall("PUT", "/rest/config/folders", folder);
+  // POST /rest/config/folders adds a single folder. The plural PUT endpoint
+  // expects an array and would overwrite every folder at once, which is not
+  // what we want. Syncthing documents POST as the "add one" shortcut.
+  // See: https://docs.syncthing.net/rest/config.html#folder-endpoints
+  await apiCall("POST", "/rest/config/folders", folder);
 
   logger.info("folder added", {
     id,
