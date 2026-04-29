@@ -15,6 +15,7 @@ import { start } from "./commands/start.js";
 import { stop } from "./commands/stop.js";
 import { doctor } from "./commands/doctor.js";
 import { update } from "./commands/update.js";
+import { id } from "./commands/id.js";
 import {
   folderAdd,
   folderList,
@@ -90,6 +91,11 @@ program
   .command("stop")
   .description("Stop the botsync daemon.")
   .action(async () => runCommand("stop", stop));
+
+program
+  .command("id")
+  .description("Print this machine's full Syncthing device ID (for pairing).")
+  .action(async () => runCommand("id", id));
 
 // ------------------------------------------------------------------
 // `botsync folder ...` — custom folder management.

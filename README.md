@@ -41,6 +41,7 @@ botsync invite            # Generate a new code to add another machine
 botsync join <passphrase> # Connect to another botsync instance
 botsync start             # Restart daemons (after reboot or stop)
 botsync status            # Show sync status and version
+botsync id                # Print this machine's full Syncthing device ID
 botsync update            # Check for updates and install latest
 botsync stop              # Stop the sync daemon
 botsync folder ...        # Manage custom sync folders (see below)
@@ -79,8 +80,10 @@ botsync folder remove tera
 
 **Stock Syncthing interop.** A botsync-managed folder is a plain Syncthing folder. Any peer running vanilla Syncthing can accept the share by:
 
-1. Adding the botsync device's ID as a remote device (Syncthing web UI → Add Remote Device).
-2. Accepting the incoming folder share when Syncthing prompts (or enabling "Auto Accept" on the device).
+1. Adding the botsync device's ID as a remote device (Syncthing web UI → Add Remote Device). Get the ID with `botsync id` on the botsync side.
+2. The vanilla peer sends back their own device ID (Syncthing web UI → Actions → Show ID).
+3. On the botsync side, run `botsync folder share <name> <vanillaDeviceId>` to add them to the folder.
+4. The vanilla peer accepts the incoming folder share when Syncthing prompts (or enables "Auto Accept" on the device).
 
 No botsync client is needed on the peer's side. Botsync only adds the pairing-code flow and the CLI ergonomics on top of Syncthing's normal folder-share machinery.
 

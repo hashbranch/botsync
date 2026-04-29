@@ -34,6 +34,30 @@ describe("generateConfig", () => {
     const xml = generateConfig("key", 9999);
     expect(xml).toContain("<autoAcceptFolders>true</autoAcceptFolders>");
   });
+
+  it("sets a default folder path under SYNC_DIR with %FOLDERID% token", async () => {
+    // Auto-accepted folders should land under our managed sync root, not at
+    // Syncthing's compiled-in default (~/<folderID>/). Otherwise a peer adding
+    // a new folder via `botsync folder share` lands at the wrong path on
+    // anyone who hadn't pre-created it.
+    vi.resetModules();
+    const tmp = mkdtempSync(join(tmpdir(), "botsync-defaults-"));
+    process.env.BOTSYNC_ROOT = tmp;
+    try {
+      const { generateConfig: gen } = await import("../src/syncthing.js");
+      const xml = gen("key", 9999);
+      expect(xml).toContain(`path="${tmp}/%FOLDERID%"`);
+      // The default should be inside a <defaults> block (not the
+      // botsync-shared folder definition above it).
+      const defaultsIdx = xml.indexOf("<defaults>");
+      const tokenIdx = xml.indexOf("%FOLDERID%");
+      expect(defaultsIdx).toBeGreaterThan(-1);
+      expect(tokenIdx).toBeGreaterThan(defaultsIdx);
+    } finally {
+      delete process.env.BOTSYNC_ROOT;
+      rmSync(tmp, { recursive: true, force: true });
+    }
+  });
 });
 
 describe("cleanupStale", () => {
