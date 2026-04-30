@@ -15,6 +15,14 @@ import { start } from "./commands/start.js";
 import { stop } from "./commands/stop.js";
 import { doctor } from "./commands/doctor.js";
 import { update } from "./commands/update.js";
+import { id } from "./commands/id.js";
+import {
+  folderAdd,
+  folderList,
+  folderRemove,
+  folderShare,
+  folderUnshare,
+} from "./commands/folder.js";
 import { createLogger } from "./log.js";
 import { VERSION } from "./version.js";
 import * as ui from "./ui.js";
@@ -83,5 +91,63 @@ program
   .command("stop")
   .description("Stop the botsync daemon.")
   .action(async () => runCommand("stop", stop));
+
+program
+  .command("id")
+  .description("Print this machine's full Syncthing device ID (for pairing).")
+  .action(async () => runCommand("id", id));
+
+// ------------------------------------------------------------------
+// `botsync folder ...` — custom folder management.
+// All subcommands go through the Syncthing REST API so stock Syncthing
+// peers can accept the resulting folder shares with no special client.
+// ------------------------------------------------------------------
+const folder = program
+  .command("folder")
+  .description("Manage custom sync folders (add, list, remove, share).");
+
+folder
+  .command("add <name>")
+  .description("Create a new sync folder and share it with paired peers.")
+  .option("--path <path>", "Local path for the folder (default: ~/sync/<name>)")
+  .option(
+    "--type <type>",
+    "Folder sync mode: sendreceive | sendonly | receiveonly",
+    "sendreceive",
+  )
+  .option(
+    "--devices <ids>",
+    "Comma-separated device IDs to share with (default: all paired peers)",
+  )
+  .action(async (name: string, opts: { path?: string; type?: string; devices?: string }) =>
+    runCommand("folder-add", () => folderAdd(name, opts)),
+  );
+
+folder
+  .command("list")
+  .description("List botsync-managed folders and their sync state.")
+  .action(async () => runCommand("folder-list", () => folderList()));
+
+folder
+  .command("remove <name>")
+  .description("Unshare a folder from local Syncthing (local files are kept).")
+  .option("--force", "Skip the confirmation prompt")
+  .action(async (name: string, opts: { force?: boolean }) =>
+    runCommand("folder-remove", () => folderRemove(name, opts)),
+  );
+
+folder
+  .command("share <name> <deviceId>")
+  .description("Add a paired device to an existing folder's share list.")
+  .action(async (name: string, deviceId: string) =>
+    runCommand("folder-share", () => folderShare(name, deviceId)),
+  );
+
+folder
+  .command("unshare <name> <deviceId>")
+  .description("Remove a device from a folder's share list (still paired).")
+  .action(async (name: string, deviceId: string) =>
+    runCommand("folder-unshare", () => folderUnshare(name, deviceId)),
+  );
 
 program.parse();
