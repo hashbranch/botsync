@@ -28,6 +28,7 @@ import {
   BOTSYNC_DIR,
   PID_FILE,
   FOLDERS,
+  SYNC_DIR,
   readConfig,
 } from "./config.js";
 import { createLogger } from "./log.js";
@@ -152,6 +153,10 @@ export async function downloadSyncthing(): Promise<void> {
  * - Local discovery enabled: allows finding peers on the same LAN without relay
  * - Relaying disabled: MVP keeps it simple, direct connections only
  * - Random API port: avoids conflicts with other Syncthing instances
+ * - Default folder path: auto-accepted folders land under SYNC_DIR (e.g.
+ *   `~/sync/botsync-tera/`) instead of Syncthing's home-dir default. Without
+ *   this, a peer adding a new folder via `botsync folder add/share` would
+ *   land at `~/<folderID>/` on receivers who hadn't pre-created the folder.
  */
 export function generateConfig(apiKey: string, apiPort: number): string {
   // Build folder XML blocks from our standard folder list
@@ -185,6 +190,11 @@ ${folderXml}
     </options>
 
     <defaults>
+        <folder id="" label="" path="${SYNC_DIR}/%FOLDERID%" type="sendreceive"
+                rescanIntervalS="10" fsWatcherEnabled="true" fsWatcherDelayS="1">
+            <filesystemType>basic</filesystemType>
+            <minDiskFree unit="%">1</minDiskFree>
+        </folder>
         <device>
             <autoAcceptFolders>true</autoAcceptFolders>
         </device>
