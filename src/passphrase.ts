@@ -23,6 +23,7 @@ export interface PassphraseData {
   folders: string[];
   networkId?: string;
   networkSecret?: string;
+  networkName?: string;
 }
 
 /**
@@ -38,6 +39,7 @@ export async function createCode(data: PassphraseData): Promise<{ code: string; 
         deviceId: data.deviceId,
         networkId: data.networkId,
         networkSecret: data.networkSecret,
+        networkName: data.networkName,
       }),
       signal: AbortSignal.timeout(5000),
     });
@@ -83,10 +85,11 @@ export async function resolveCode(code: string): Promise<PassphraseData> {
       }
     }
 
-    const { deviceId, networkId, networkSecret } = (await res.json()) as {
+    const { deviceId, networkId, networkSecret, networkName } = (await res.json()) as {
       deviceId: string;
       networkId?: string;
       networkSecret?: string;
+      networkName?: string;
     };
     // Folders are always the standard set — no need to encode them
     return {
@@ -94,6 +97,7 @@ export async function resolveCode(code: string): Promise<PassphraseData> {
       folders: ["botsync-shared"],
       networkId: networkId || undefined,
       networkSecret: networkSecret || undefined,
+      networkName: networkName || undefined,
     };
   }
 

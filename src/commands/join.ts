@@ -22,6 +22,7 @@ import {
   writeConfig,
   readConfig,
   writeNetworkId,
+  writeNetworkName,
   writeNetworkSecret,
   persistWebhookConfig,
 } from "../config.js";
@@ -50,12 +51,14 @@ export async function join(passphrase: string): Promise<void> {
   let folders: string[];
   let networkId: string | undefined;
   let networkSecret: string | undefined;
+  let networkName: string | undefined;
   try {
     const data = await resolveCode(passphrase);
     remoteId = data.deviceId;
     folders = data.folders;
     networkId = data.networkId;
     networkSecret = data.networkSecret;
+    networkName = data.networkName;
     spin0.succeed();
   } catch (err) {
     spin0.fail();
@@ -127,9 +130,15 @@ export async function join(passphrase: string): Promise<void> {
     if (networkSecret) {
       writeNetworkSecret(networkSecret);
     }
+    if (networkName) {
+      writeNetworkName(networkName);
+    }
     startHeartbeat(networkSecret);
     startEvents();
     ui.connected(remoteId);
+    if (networkName) {
+      ui.info(`Network: ${networkName}`);
+    }
     ui.info(`Dashboard: https://botsync.io/dashboard#${networkId}`);
   } else {
     ui.connected(remoteId);

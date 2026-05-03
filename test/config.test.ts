@@ -99,6 +99,40 @@ describe("network secret", () => {
   });
 });
 
+describe("network name", () => {
+  it("returns null when no name exists", async () => {
+    const cfg = await freshImport();
+    expect(cfg.readNetworkName()).toBeNull();
+  });
+
+  it("persists network name to network.json", async () => {
+    const cfg = await freshImport();
+    cfg.writeNetworkName("team-sync");
+    expect(cfg.readNetworkName()).toBe("team-sync");
+  });
+
+  it("trims network name before writing", async () => {
+    const cfg = await freshImport();
+    cfg.writeNetworkName("  team-sync  ");
+    expect(cfg.readNetworkName()).toBe("team-sync");
+  });
+
+  it("rejects empty network names", async () => {
+    const cfg = await freshImport();
+    expect(() => cfg.writeNetworkName("   ")).toThrow("Network name cannot be empty");
+  });
+
+  it("preserves network name when writing ID and secret", async () => {
+    const cfg = await freshImport();
+    cfg.writeNetworkName("team-sync");
+    cfg.writeNetworkId("net-1");
+    cfg.writeNetworkSecret("secret-abc");
+    expect(cfg.readNetworkName()).toBe("team-sync");
+    expect(cfg.readNetworkId()).toBe("net-1");
+    expect(cfg.readNetworkSecret()).toBe("secret-abc");
+  });
+});
+
 describe("BOTSYNC_ROOT override", () => {
   it("uses custom root for all paths", async () => {
     const cfg = await freshImport();

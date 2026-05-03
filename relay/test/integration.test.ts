@@ -118,8 +118,9 @@ describe("Pairing", () => {
     const deviceId = "SECTEST-HIJKLMN-OPQRSTU-VWXYZ12-3456789-0ABCDEF";
     const networkSecret = "my-super-secret-token-12345";
     const networkId = "test-net-secret";
+    const networkName = "team-sync";
 
-    const createRes = await post("/pair", { deviceId, networkId, networkSecret });
+    const createRes = await post("/pair", {deviceId, networkId, networkSecret, networkName});
     expect(createRes.status).toBe(201);
     const { code } = (await createRes.json()) as { code: string };
 
@@ -129,10 +130,12 @@ describe("Pairing", () => {
       deviceId: string;
       networkId: string;
       networkSecret: string;
+      networkName: string;
     };
     expect(json.deviceId).toBe(deviceId);
     expect(json.networkId).toBe(networkId);
     expect(json.networkSecret).toBe(networkSecret);
+    expect(json.networkName).toBe(networkName);
   });
 
   it("11th POST /pair in 60s returns 429 (rate limited)", async () => {
@@ -171,6 +174,7 @@ describe("Auth", () => {
     name: "test-device",
     os: "linux",
     version: "0.3.0",
+    networkName: "test-network",
   };
 
   it("POST /network/:id/heartbeat with Bearer registers auth and returns 200", async () => {
@@ -218,10 +222,12 @@ describe("Auth", () => {
     expect(res.status).toBe(200);
     const json = (await res.json()) as {
       networkId: string;
+      networkName: string;
       devices: Array<{ deviceId: string }>;
       count: number;
     };
     expect(json.networkId).toBe(networkId);
+    expect(json.networkName).toBe("test-network");
     expect(json.count).toBeGreaterThanOrEqual(1);
     expect(json.devices[0].deviceId).toBe("AUTH000"); // truncated to 7 chars
   });
@@ -250,6 +256,7 @@ describe("Legacy compat (no auth set)", () => {
     name: "legacy-device",
     os: "darwin",
     version: "0.2.0",
+    networkName: "legacy-network",
   };
 
   it("POST /network/:id/heartbeat with no Bearer (no auth set) returns 200", async () => {
@@ -264,10 +271,12 @@ describe("Legacy compat (no auth set)", () => {
     expect(res.status).toBe(200);
     const json = (await res.json()) as {
       networkId: string;
+      networkName: string;
       devices: Array<{ deviceId: string }>;
       count: number;
     };
     expect(json.networkId).toBe(networkId);
+    expect(json.networkName).toBe("legacy-network");
     expect(json.count).toBeGreaterThanOrEqual(1);
   });
 });

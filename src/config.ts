@@ -48,7 +48,7 @@ export const FOLDERS = [
 // Manifest file — tells agents what this folder is and how to use it
 export const MANIFEST_FILE = join(SYNC_DIR, "BOTSYNC.md");
 
-// Network identity file — stores the network ID for dashboard visibility
+// Network identity file — stores network metadata for dashboard visibility
 export const NETWORK_FILE = join(BOTSYNC_DIR, "network.json");
 
 // PID file for the events daemon
@@ -64,6 +64,12 @@ export interface BotsyncConfig {
   deviceId?: string;
   webhookUrl?: string;   // OpenClaw hooks URL (default: http://127.0.0.1:18789/hooks/agent)
   webhookToken?: string; // OpenClaw hooks bearer token
+}
+
+interface NetworkFile {
+  networkId?: string;
+  networkSecret?: string;
+  networkName?: string;
 }
 
 /**
@@ -153,8 +159,35 @@ export function readNetworkSecret(): string | null {
   return data?.networkSecret || null;
 }
 
+/** Read the human-friendly network name, or return null when unset. */
+export function readNetworkName(): string | null {
+  const data = readNetworkFile();
+  return data?.networkName || null;
+}
+
+/** Validate and normalize a dashboard-visible network name. */
+export function validateNetworkName(name: string): string {
+  const trimmed = name.trim();
+  if (!trimmed) {
+    throw new Error("Network name cannot be empty.");
+  }
+  return trimmed;
+}
+
+/**
+ * Write the human-friendly network name.
+ * SECURITY: Preserve 0o600 because network.json also contains networkSecret.
+ */
+export function writeNetworkName(networkName: string): void {
+  mkdirSync(BOTSYNC_DIR, { recursive: true });
+  const existing = readNetworkFile();
+  const data = { ...existing, networkName: validateNetworkName(networkName) };
+  writeFileSync(NETWORK_FILE, JSON.stringify(data, null, 2));
+  chmodSync(NETWORK_FILE, 0o600);
+}
+
 /** Internal: read the raw network.json file */
-function readNetworkFile(): { networkId?: string; networkSecret?: string } | null {
+function readNetworkFile(): NetworkFile | null {
   try {
     const raw = readFileSync(NETWORK_FILE, "utf-8");
     return JSON.parse(raw);

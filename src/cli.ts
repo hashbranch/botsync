@@ -54,7 +54,8 @@ program
 program
   .command("init")
   .description("Initialize botsync and start syncing. Prints a passphrase for pairing.")
-  .action(async () => runCommand("init", init));
+  .option("--name <name>", "Human-friendly network name shown on the dashboard.")
+  .action(async (options: { name?: string }) => runCommand("init", () => init(options)));
 
 program
   .command("invite")

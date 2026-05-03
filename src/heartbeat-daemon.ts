@@ -10,7 +10,7 @@
  */
 
 import { hostname } from "os";
-import { readConfig, readNetworkId, readNetworkSecret, BOTSYNC_DIR } from "./config.js";
+import { readConfig, readNetworkId, readNetworkName, readNetworkSecret, BOTSYNC_DIR} from "./config.js";
 import { writeFileSync, unlinkSync } from "fs";
 import { join } from "path";
 import { createLogger } from "./log.js";
@@ -71,6 +71,7 @@ async function sendHeartbeat(): Promise<boolean> {
           name: hostname(),
           os: process.platform,
           version: getVersion(),
+          networkName: readNetworkName() || undefined,
         }),
         signal: AbortSignal.timeout(5000),
       }

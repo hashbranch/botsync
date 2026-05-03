@@ -20,8 +20,10 @@ import {
   SYNCTHING_CONFIG_DIR,
   FOLDERS,
   MANIFEST_FILE,
+  validateNetworkName,
   writeConfig,
   writeNetworkId,
+  writeNetworkName,
   writeNetworkSecret,
   persistWebhookConfig,
 } from "../config.js";
@@ -89,7 +91,11 @@ botsync update   # Update to the latest version
 `;
 }
 
-export async function init(): Promise<void> {
+export interface InitOptions {
+  name?: string;
+}
+
+export async function init(options: InitOptions = {}): Promise<void> {
   ui.header();
 
   // Step 0: Kill any stale Syncthing from a previous interrupted run
@@ -140,11 +146,15 @@ export async function init(): Promise<void> {
   // The relay stores only sha256(secret), never the plaintext.
   const networkId = randomUUID();
   const networkSecret = randomUUID();
+  const networkName = options.name ? validateNetworkName(options.name) : undefined;
   writeNetworkId(networkId);
   writeNetworkSecret(networkSecret);
+  if (networkName) {
+    writeNetworkName(networkName);
+  }
   startHeartbeat(networkSecret);
   startEvents();
-  ui.stepDone("Network registered");
+  ui.stepDone(networkName ? `Network registered (${networkName})` : "Network registered");
 
   // Step 6: Register with relay and display the code
   ui.gap();
@@ -153,6 +163,7 @@ export async function init(): Promise<void> {
     folders: FOLDERS.map((f) => f.id),
     networkId,
     networkSecret,
+    networkName,
   });
 
   if (isRelay) {
