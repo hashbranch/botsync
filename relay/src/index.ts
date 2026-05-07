@@ -69,6 +69,8 @@ interface NetworkMeta {
   name: string;
 }
 
+const MAX_NETWORK_NAME_LENGTH = 64;
+
 /**
  * Build CORS headers based on the request path.
  *
@@ -148,7 +150,7 @@ function sanitizeNetworkName(input: unknown): string | null {
   if (typeof input !== "string") return null;
   const trimmed = input.trim();
   if (!trimmed) return null;
-  return trimmed;
+  return trimmed.slice(0, MAX_NETWORK_NAME_LENGTH);
 }
 
 /**
@@ -417,10 +419,23 @@ export default {
 
         const networkName = sanitizeNetworkName(body.networkName);
         if (networkName) {
-          const meta: NetworkMeta = {
-            name: networkName,
-          };
-          await env.NETWORKS.put(networkMetaKey(networkId), JSON.stringify(meta));
+          const metaKey = networkMetaKey(networkId);
+          const existing = await env.NETWORKS.get(metaKey);
+          let existingName: string | null = null;
+
+          if (existing) {
+            try {
+              const meta = JSON.parse(existing) as Partial<NetworkMeta>;
+              existingName = sanitizeNetworkName(meta.name);
+            } catch {
+              // Rewrite corrupt metadata below.
+            }
+          }
+
+          if (existingName !== networkName) {
+            const meta: NetworkMeta = { name: networkName };
+            await env.NETWORKS.put(metaKey, JSON.stringify(meta));
+          }
         }
 
         return Response.json({ ok: true }, { headers: cors });

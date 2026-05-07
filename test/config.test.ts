@@ -117,6 +117,12 @@ describe("network name", () => {
     expect(cfg.readNetworkName()).toBe("team-sync");
   });
 
+  it("caps network names at 64 characters", async () => {
+    const cfg = await freshImport();
+    cfg.writeNetworkName("a".repeat(80));
+    expect(cfg.readNetworkName()).toBe("a".repeat(cfg.MAX_NETWORK_NAME_LENGTH));
+  });
+
   it("rejects empty network names", async () => {
     const cfg = await freshImport();
     expect(() => cfg.writeNetworkName("   ")).toThrow("Network name cannot be empty");

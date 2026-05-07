@@ -72,6 +72,8 @@ interface NetworkFile {
   networkName?: string;
 }
 
+export const MAX_NETWORK_NAME_LENGTH = 64;
+
 /**
  * Persist webhook config from env vars (OPENCLAW_HOOKS_TOKEN, OPENCLAW_HOOKS_URL)
  * into config.json if present and changed. This allows subsequent `botsync start`
@@ -171,7 +173,7 @@ export function validateNetworkName(name: string): string {
   if (!trimmed) {
     throw new Error("Network name cannot be empty.");
   }
-  return trimmed;
+  return trimmed.slice(0, MAX_NETWORK_NAME_LENGTH);
 }
 
 /**

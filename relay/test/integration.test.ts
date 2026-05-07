@@ -138,6 +138,20 @@ describe("Pairing", () => {
     expect(json.networkName).toBe(networkName);
   });
 
+  it("truncates networkName in pairing payloads to 64 characters", async () => {
+    const deviceId = "NAMETST-HIJKLMN-OPQRSTU-VWXYZ12-3456789-0ABCDEF";
+    const networkName = "n".repeat(80);
+
+    const createRes = await post("/pair", { deviceId, networkName });
+    expect(createRes.status).toBe(201);
+    const { code } = (await createRes.json()) as { code: string };
+
+    const getRes = await get(`/pair/${code}`);
+    expect(getRes.status).toBe(200);
+    const json = (await getRes.json()) as { networkName: string };
+    expect(json.networkName).toBe("n".repeat(64));
+  });
+
   it("11th POST /pair in 60s returns 429 (rate limited)", async () => {
     // Send 10 requests (the limit)
     const deviceId = "RATELIM-HIJKLMN-OPQRSTU-VWXYZ12-3456789-0ABCDEF";
@@ -230,6 +244,24 @@ describe("Auth", () => {
     expect(json.networkName).toBe("test-network");
     expect(json.count).toBeGreaterThanOrEqual(1);
     expect(json.devices[0].deviceId).toBe("AUTH000"); // truncated to 7 chars
+  });
+
+  it("truncates networkName in heartbeat metadata to 64 characters", async () => {
+    const longNameNetworkId = `long-name-${Date.now()}`;
+    const longNameSecret = "long-name-network-secret";
+    const res = await post(
+      `/network/${longNameNetworkId}/heartbeat`,
+      { ...devicePayload, networkName: "n".repeat(80) },
+      { Authorization: `Bearer ${longNameSecret}` }
+    );
+    expect(res.status).toBe(200);
+
+    const devicesRes = await get(
+      `/network/${longNameNetworkId}/devices?token=${longNameSecret}`
+    );
+    expect(devicesRes.status).toBe(200);
+    const json = (await devicesRes.json()) as { networkName: string };
+    expect(json.networkName).toBe("n".repeat(64));
   });
 
   it("GET /network/:id/devices?token=wrong returns 401", async () => {
