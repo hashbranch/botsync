@@ -20,6 +20,7 @@ import {
   SYNCTHING_CONFIG_DIR,
   FOLDERS,
   MANIFEST_FILE,
+  readConfig,
   writeConfig,
   writeNetworkId,
   writeNetworkSecret,
@@ -89,8 +90,31 @@ botsync update   # Update to the latest version
 `;
 }
 
-export async function init(): Promise<void> {
+export interface InitOptions {
+  force?: boolean;
+}
+
+export async function init(options: InitOptions = {}): Promise<void> {
   ui.header();
+
+  // Refuse to nuke an existing install. Re-running init wipes the Syncthing
+  // peer list and rotates the network secret — recovering from that means
+  // re-pairing every peer by hand. Force users to be explicit.
+  const existing = readConfig();
+  if (existing?.deviceId && !options.force) {
+    ui.error("botsync is already initialized.");
+    ui.gap();
+    ui.info("Did you mean one of:");
+    ui.info("  botsync start              Restart the daemon (e.g. after a reboot)");
+    ui.info("  botsync status             Check sync state and paired peers");
+    ui.info("  botsync invite             Pair a new machine");
+    ui.info("  botsync add-device <id>    Re-add a peer by their device ID");
+    ui.gap();
+    ui.info("To wipe and start over (this clears all peer pairings):");
+    ui.info("  botsync init --force");
+    ui.gap();
+    process.exit(1);
+  }
 
   // Step 0: Kill any stale Syncthing from a previous interrupted run
   cleanupStale();
