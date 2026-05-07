@@ -65,6 +65,12 @@ interface DeviceInfo {
   version: string; // botsync version
 }
 
+interface NetworkMeta {
+  name: string;
+}
+
+const MAX_NETWORK_NAME_LENGTH = 64;
+
 /**
  * Build CORS headers based on the request path.
  *
@@ -124,6 +130,11 @@ function authKey(networkId: string): string {
   return `net:${networkId}:auth`;
 }
 
+/** KV key for dashboard-visible network metadata. */
+function networkMetaKey(networkId: string): string {
+  return `net:${networkId}:meta`;
+}
+
 /** KV key for a device in a network */
 function deviceKey(networkId: string, deviceId: string): string {
   return `net:${networkId}:dev:${deviceId}`;
@@ -132,6 +143,14 @@ function deviceKey(networkId: string, deviceId: string): string {
 /** KV key prefix for listing devices in a network */
 function networkPrefix(networkId: string): string {
   return `net:${networkId}:dev:`;
+}
+
+/** Validate and normalize dashboard-visible network names. */
+function sanitizeNetworkName(input: unknown): string | null {
+  if (typeof input !== "string") return null;
+  const trimmed = input.trim();
+  if (!trimmed) return null;
+  return trimmed.slice(0, MAX_NETWORK_NAME_LENGTH);
 }
 
 /**
@@ -207,7 +226,7 @@ export default {
     // ── Pairing ──────────────────────────────────────────────
 
     // POST /pair — create a pairing code
-    // Accepts { deviceId, networkId?, networkSecret? }
+    // Accepts { deviceId, networkId?, networkSecret?, networkName? }
     // Relay holds plaintext secret in PAIRS KV for ≤10 min (one-time use, auto-expires)
     if (request.method === "POST" && url.pathname === "/pair") {
       // Rate limit: 10 POST /pair per minute per IP
@@ -223,6 +242,7 @@ export default {
           deviceId?: string;
           networkId?: string;
           networkSecret?: string;
+          networkName?: string;
         };
 
         if (!body.deviceId || typeof body.deviceId !== "string") {
@@ -262,6 +282,7 @@ export default {
         const payload: Record<string, string | null> = {
           deviceId: body.deviceId,
           networkId: body.networkId || null,
+          networkName: sanitizeNetworkName(body.networkName),
         };
 
         // If networkSecret provided, store the hash AND the raw secret.
@@ -320,12 +341,14 @@ export default {
       let deviceId: string;
       let networkId: string | null = null;
       let networkSecret: string | null = null;
+      let networkName: string | null = null;
 
       try {
         const parsed = JSON.parse(raw);
         deviceId = parsed.deviceId;
         networkId = parsed.networkId || null;
         networkSecret = parsed.networkSecret || null;
+        networkName = sanitizeNetworkName(parsed.networkName);
         // Note: secretHash is NOT returned — it's for relay internal use only
       } catch {
         // Old format — raw string is the deviceId
@@ -335,6 +358,9 @@ export default {
       const response: Record<string, string | null> = { deviceId, networkId };
       if (networkSecret) {
         response.networkSecret = networkSecret;
+      }
+      if (networkName) {
+        response.networkName = networkName;
       }
 
       return Response.json(response, { headers: cors });
@@ -365,7 +391,9 @@ export default {
       if (authError) return authError;
 
       try {
-        const body = (await request.json()) as Partial<DeviceInfo>;
+        const body = (await request.json()) as Partial<DeviceInfo> & {
+          networkName?: string;
+        };
 
         if (!body.deviceId || typeof body.deviceId !== "string") {
           return Response.json(
@@ -388,6 +416,27 @@ export default {
         await env.NETWORKS.put(key, JSON.stringify(device), {
           expirationTtl: 600,
         });
+
+        const networkName = sanitizeNetworkName(body.networkName);
+        if (networkName) {
+          const metaKey = networkMetaKey(networkId);
+          const existing = await env.NETWORKS.get(metaKey);
+          let existingName: string | null = null;
+
+          if (existing) {
+            try {
+              const meta = JSON.parse(existing) as Partial<NetworkMeta>;
+              existingName = sanitizeNetworkName(meta.name);
+            } catch {
+              // Rewrite corrupt metadata below.
+            }
+          }
+
+          if (existingName !== networkName) {
+            const meta: NetworkMeta = { name: networkName };
+            await env.NETWORKS.put(metaKey, JSON.stringify(meta));
+          }
+        }
 
         return Response.json({ ok: true }, { headers: cors });
       } catch {
@@ -420,6 +469,17 @@ export default {
       const prefix = networkPrefix(networkId);
       const list = await env.NETWORKS.list({ prefix });
       const devices: DeviceInfo[] = [];
+      let networkName: string | null = null;
+
+      const rawMeta = await env.NETWORKS.get(networkMetaKey(networkId));
+      if (rawMeta) {
+        try {
+          const meta = JSON.parse(rawMeta) as Partial<NetworkMeta>;
+          networkName = sanitizeNetworkName(meta.name);
+        } catch {
+          // Ignore corrupt metadata; device list should still render.
+        }
+      }
 
       for (const key of list.keys) {
         const val = await env.NETWORKS.get(key.name);
@@ -439,7 +499,7 @@ export default {
       );
 
       return Response.json(
-        { networkId, devices, count: devices.length },
+        { networkId, networkName, devices, count: devices.length },
         { headers: cors }
       );
     }

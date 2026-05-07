@@ -118,8 +118,9 @@ describe("Pairing", () => {
     const deviceId = "SECTEST-HIJKLMN-OPQRSTU-VWXYZ12-3456789-0ABCDEF";
     const networkSecret = "my-super-secret-token-12345";
     const networkId = "test-net-secret";
+    const networkName = "team-sync";
 
-    const createRes = await post("/pair", { deviceId, networkId, networkSecret });
+    const createRes = await post("/pair", {deviceId, networkId, networkSecret, networkName});
     expect(createRes.status).toBe(201);
     const { code } = (await createRes.json()) as { code: string };
 
@@ -129,10 +130,26 @@ describe("Pairing", () => {
       deviceId: string;
       networkId: string;
       networkSecret: string;
+      networkName: string;
     };
     expect(json.deviceId).toBe(deviceId);
     expect(json.networkId).toBe(networkId);
     expect(json.networkSecret).toBe(networkSecret);
+    expect(json.networkName).toBe(networkName);
+  });
+
+  it("truncates networkName in pairing payloads to 64 characters", async () => {
+    const deviceId = "NAMETST-HIJKLMN-OPQRSTU-VWXYZ12-3456789-0ABCDEF";
+    const networkName = "n".repeat(80);
+
+    const createRes = await post("/pair", { deviceId, networkName });
+    expect(createRes.status).toBe(201);
+    const { code } = (await createRes.json()) as { code: string };
+
+    const getRes = await get(`/pair/${code}`);
+    expect(getRes.status).toBe(200);
+    const json = (await getRes.json()) as { networkName: string };
+    expect(json.networkName).toBe("n".repeat(64));
   });
 
   it("11th POST /pair in 60s returns 429 (rate limited)", async () => {
@@ -171,6 +188,7 @@ describe("Auth", () => {
     name: "test-device",
     os: "linux",
     version: "0.3.0",
+    networkName: "test-network",
   };
 
   it("POST /network/:id/heartbeat with Bearer registers auth and returns 200", async () => {
@@ -218,12 +236,32 @@ describe("Auth", () => {
     expect(res.status).toBe(200);
     const json = (await res.json()) as {
       networkId: string;
+      networkName: string;
       devices: Array<{ deviceId: string }>;
       count: number;
     };
     expect(json.networkId).toBe(networkId);
+    expect(json.networkName).toBe("test-network");
     expect(json.count).toBeGreaterThanOrEqual(1);
     expect(json.devices[0].deviceId).toBe("AUTH000"); // truncated to 7 chars
+  });
+
+  it("truncates networkName in heartbeat metadata to 64 characters", async () => {
+    const longNameNetworkId = `long-name-${Date.now()}`;
+    const longNameSecret = "long-name-network-secret";
+    const res = await post(
+      `/network/${longNameNetworkId}/heartbeat`,
+      { ...devicePayload, networkName: "n".repeat(80) },
+      { Authorization: `Bearer ${longNameSecret}` }
+    );
+    expect(res.status).toBe(200);
+
+    const devicesRes = await get(
+      `/network/${longNameNetworkId}/devices?token=${longNameSecret}`
+    );
+    expect(devicesRes.status).toBe(200);
+    const json = (await devicesRes.json()) as { networkName: string };
+    expect(json.networkName).toBe("n".repeat(64));
   });
 
   it("GET /network/:id/devices?token=wrong returns 401", async () => {
@@ -250,6 +288,7 @@ describe("Legacy compat (no auth set)", () => {
     name: "legacy-device",
     os: "darwin",
     version: "0.2.0",
+    networkName: "legacy-network",
   };
 
   it("POST /network/:id/heartbeat with no Bearer (no auth set) returns 200", async () => {
@@ -264,10 +303,12 @@ describe("Legacy compat (no auth set)", () => {
     expect(res.status).toBe(200);
     const json = (await res.json()) as {
       networkId: string;
+      networkName: string;
       devices: Array<{ deviceId: string }>;
       count: number;
     };
     expect(json.networkId).toBe(networkId);
+    expect(json.networkName).toBe("legacy-network");
     expect(json.count).toBeGreaterThanOrEqual(1);
   });
 });

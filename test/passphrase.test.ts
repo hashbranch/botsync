@@ -10,6 +10,7 @@ const SAMPLE_DATA: PassphraseData = {
   folders: ["botsync-shared"],
   networkId: "net-123",
   networkSecret: "secret-456",
+  networkName: "team-sync",
 };
 
 describe("base58 encode/decode (offline mode)", () => {
@@ -85,6 +86,7 @@ describe("resolveCode", () => {
         deviceId: "REMOTE-DEVICE-ID",
         networkId: "net-remote",
         networkSecret: "sec-remote",
+        networkName: "remote-team",
       }),
     });
 
@@ -92,6 +94,7 @@ describe("resolveCode", () => {
     expect(data.deviceId).toBe("REMOTE-DEVICE-ID");
     expect(data.networkId).toBe("net-remote");
     expect(data.networkSecret).toBe("sec-remote");
+    expect(data.networkName).toBe("remote-team");
     expect(data.folders).toEqual(["botsync-shared"]);
   });
 
