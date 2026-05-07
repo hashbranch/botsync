@@ -17,6 +17,7 @@ import { doctor } from "./commands/doctor.js";
 import { update } from "./commands/update.js";
 import { id } from "./commands/id.js";
 import { addDeviceCmd } from "./commands/add-device.js";
+import { pending } from "./commands/pending.js";
 import {
   folderAdd,
   folderList,
@@ -104,6 +105,14 @@ program
   .description("Add a peer's device ID and share the default folder (no passphrase needed).")
   .action(async (deviceId: string) =>
     runCommand("add-device", () => addDeviceCmd(deviceId)),
+  );
+
+program
+  .command("pending")
+  .description("List and accept pending peer/folder invitations from Syncthing.")
+  .option("--yes", "Accept all pending invitations without prompting.")
+  .action(async (options: { yes?: boolean }) =>
+    runCommand("pending", () => pending(options)),
   );
 
 // ------------------------------------------------------------------

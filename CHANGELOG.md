@@ -3,6 +3,7 @@
 ## [Unreleased] - dev
 
 ### Added
+- **`botsync pending`** — List and accept the device-add and folder-share invitations that Syncthing's web UI surfaces as pending. Recovery scenario: when `init` was rerun and peers' connection attempts queued up as pending, this command accepts them all in one shot. Filters out deprecated folder IDs (`botsync-deliverables`, `botsync-inbox`) and surfaces them as a hint that the peer is on an outdated botsync version. `--yes` skips the confirmation prompt for scripting.
 - **`botsync add-device <id>`** — Manually add a peer's device ID and share the default folder, no passphrase needed. Two scenarios: (1) recovery after `botsync init` cleared the local peer list; (2) pairing with a stock-Syncthing peer that can't run `botsync join`. Validates the 8-group / 7-char base32 device-ID shape and normalizes case + whitespace.
 - **`botsync init` re-init guard** — Refuses to run when an existing config + deviceId are present, since re-running `init` silently wipes the Syncthing peer list and rotates the relay network secret. Prints actionable next steps (`start`, `status`, `invite`, `add-device`). Bypass with `--force` if the wipe is actually intended.
 - **`botsync id`** — Print this machine's full Syncthing device ID on stdout. `botsync status` only shows the first 7 chars for display; pairing (botsync or vanilla Syncthing) needs the full 56-char ID, and previously the only way to get it was grepping `~/sync/.botsync/config.json`. Pipeable: `npx botsync id | pbcopy`.

@@ -370,6 +370,74 @@ export async function addDeviceToFolder(folderId: string, deviceId: string): Pro
 }
 
 /**
+ * A device that has tried to connect to us but isn't in our config yet.
+ * Surfaced by Syncthing under `/rest/cluster/pending/devices`. The web UI
+ * displays these as the "wants to connect" notification banner.
+ */
+export interface PendingDevice {
+  deviceId: string;
+  name: string;
+  address: string;
+  time: string;
+}
+
+/**
+ * A folder a peer wants to share with us that we haven't accepted yet.
+ * One offer per (folder, device) pair — a folder can be offered by multiple
+ * peers, and a peer can offer multiple folders.
+ */
+export interface PendingFolder {
+  folderId: string;
+  offeredBy: string;
+  label: string;
+  time: string;
+}
+
+/**
+ * List pending device-add requests. These are peers who have tried to
+ * connect but whose device IDs aren't in our config — typically the
+ * other side of a pairing handshake or, in the recovery scenario, peers
+ * who already had us paired and are still trying to reach us.
+ */
+export async function getPendingDevices(): Promise<PendingDevice[]> {
+  const data = await apiCall<
+    Record<string, { time: string; name: string; address: string }>
+  >("GET", "/rest/cluster/pending/devices");
+  return Object.entries(data || {}).map(([deviceId, info]) => ({
+    deviceId,
+    name: info.name,
+    address: info.address,
+    time: info.time,
+  }));
+}
+
+/**
+ * List pending folder shares. Each entry is one peer offering one folder
+ * — Syncthing nests these as `{ folderId: { offeredBy: { deviceId: ... } } }`,
+ * we flatten for easier iteration.
+ */
+export async function getPendingFolders(): Promise<PendingFolder[]> {
+  const data = await apiCall<
+    Record<
+      string,
+      { offeredBy?: Record<string, { time: string; label: string }> }
+    >
+  >("GET", "/rest/cluster/pending/folders");
+  const result: PendingFolder[] = [];
+  for (const [folderId, folder] of Object.entries(data || {})) {
+    for (const [deviceId, offer] of Object.entries(folder.offeredBy || {})) {
+      result.push({
+        folderId,
+        offeredBy: deviceId,
+        label: offer.label,
+        time: offer.time,
+      });
+    }
+  }
+  return result;
+}
+
+/**
  * Stop the Syncthing daemon by reading the PID file and sending SIGTERM.
  * Returns true if a process was stopped, false if nothing was running.
  *
