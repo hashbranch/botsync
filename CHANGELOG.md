@@ -3,6 +3,8 @@
 ## [Unreleased] - dev
 
 ### Added
+- **`botsync add-device <id>`** — Manually add a peer's device ID and share the default folder, no passphrase needed. Two scenarios: (1) recovery after `botsync init` cleared the local peer list; (2) pairing with a stock-Syncthing peer that can't run `botsync join`. Validates the 8-group / 7-char base32 device-ID shape and normalizes case + whitespace.
+- **`botsync init` re-init guard** — Refuses to run when an existing config + deviceId are present, since re-running `init` silently wipes the Syncthing peer list and rotates the relay network secret. Prints actionable next steps (`start`, `status`, `invite`, `add-device`). Bypass with `--force` if the wipe is actually intended.
 - **`botsync id`** — Print this machine's full Syncthing device ID on stdout. `botsync status` only shows the first 7 chars for display; pairing (botsync or vanilla Syncthing) needs the full 56-char ID, and previously the only way to get it was grepping `~/sync/.botsync/config.json`. Pipeable: `npx botsync id | pbcopy`.
 - **`botsync folder` subcommands** to manage sync folders beyond the default `shared/`:
   - `folder add <name> [--path] [--type] [--devices]` creates a new folder, creates the local directory if missing, and shares it with paired peers (or a specified subset).

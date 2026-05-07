@@ -16,6 +16,7 @@ import { stop } from "./commands/stop.js";
 import { doctor } from "./commands/doctor.js";
 import { update } from "./commands/update.js";
 import { id } from "./commands/id.js";
+import { addDeviceCmd } from "./commands/add-device.js";
 import {
   folderAdd,
   folderList,
@@ -54,7 +55,8 @@ program
 program
   .command("init")
   .description("Initialize botsync and start syncing. Prints a passphrase for pairing.")
-  .action(async () => runCommand("init", init));
+  .option("--force", "Re-initialize even if already set up. WARNING: clears all peer pairings.")
+  .action(async (options: { force?: boolean }) => runCommand("init", () => init(options)));
 
 program
   .command("invite")
@@ -96,6 +98,13 @@ program
   .command("id")
   .description("Print this machine's full Syncthing device ID (for pairing).")
   .action(async () => runCommand("id", id));
+
+program
+  .command("add-device <deviceId>")
+  .description("Add a peer's device ID and share the default folder (no passphrase needed).")
+  .action(async (deviceId: string) =>
+    runCommand("add-device", () => addDeviceCmd(deviceId)),
+  );
 
 // ------------------------------------------------------------------
 // `botsync folder ...` — custom folder management.
